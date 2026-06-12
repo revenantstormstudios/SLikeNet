@@ -12,6 +12,6 @@ build/
 *.cache
 *.exp
 *.dll
-DependentExtensions/cat/.vs/libcat/v17/Browse.VC.db-wal
 *.bin
 /DependentExtensions/cat/.vs
+*.ilk
