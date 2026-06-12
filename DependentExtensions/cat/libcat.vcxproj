@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{FB34985D-9788-4B71-76D8-D51E73B9EDD9}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>..\</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>..\</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\codec\RangeCoder.cpp" />
+    <ClCompile Include="src\crypt\cookie\CookieJar.cpp" />
+    <ClCompile Include="src\crypt\hash\HMAC_MD5.cpp" />
+    <ClCompile Include="src\crypt\hash\Skein.cpp" />
+    <ClCompile Include="src\crypt\hash\Skein256.cpp" />
+    <ClCompile Include="src\crypt\hash\Skein512.cpp" />
+    <ClCompile Include="src\crypt\pass\Passwords.cpp" />
+    <ClCompile Include="src\crypt\privatekey\ChaCha.cpp" />
+    <ClCompile Include="src\crypt\rand\EntropyGeneric.cpp" />
+    <ClCompile Include="src\crypt\rand\EntropyLinux.cpp" />
+    <ClCompile Include="src\crypt\rand\EntropyWindows.cpp" />
+    <ClCompile Include="src\crypt\rand\EntropyWindowsCE.cpp" />
+    <ClCompile Include="src\crypt\rand\Fortuna.cpp" />
+    <ClCompile Include="src\crypt\SecureCompare.cpp" />
+    <ClCompile Include="src\crypt\tunnel\AuthenticatedEncryption.cpp" />
+    <ClCompile Include="src\crypt\tunnel\EasyHandshake.cpp" />
+    <ClCompile Include="src\crypt\tunnel\KeyAgreement.cpp" />
+    <ClCompile Include="src\crypt\tunnel\KeyAgreementInitiator.cpp" />
+    <ClCompile Include="src\crypt\tunnel\KeyAgreementResponder.cpp" />
+    <ClCompile Include="src\crypt\tunnel\KeyMaker.cpp" />
+    <ClCompile Include="src\db\BombayTable.cpp" />
+    <ClCompile Include="src\db\BombayTableIndex.cpp" />
+    <ClCompile Include="src\Framework.cpp" />
+    <ClCompile Include="src\gfx\Matrix.cpp" />
+    <ClCompile Include="src\gfx\Quaternion.cpp" />
+    <ClCompile Include="src\gfx\Scalar.cpp" />
+    <ClCompile Include="src\gfx\Vector.cpp" />
+    <ClCompile Include="src\hash\MurmurHash2.cpp" />
+    <ClCompile Include="src\io\Base64.cpp" />
+    <ClCompile Include="src\io\Logging.cpp" />
+    <ClCompile Include="src\io\MMapFile.cpp" />
+    <ClCompile Include="src\io\Settings.cpp" />
+    <ClCompile Include="src\io\ThreadPoolFiles.cpp" />
+    <ClCompile Include="src\lang\Strings.cpp" />
+    <ClCompile Include="src\math\BigMontgomery.cpp" />
+    <ClCompile Include="src\math\BigPseudoMersenne.cpp" />
+    <ClCompile Include="src\math\BigRTL.cpp" />
+    <ClCompile Include="src\math\BigTwistedEdwards.cpp" />
+    <ClCompile Include="src\math\edward\addsub\PtAdd.cpp" />
+    <ClCompile Include="src\math\edward\addsub\PtDouble.cpp" />
+    <ClCompile Include="src\math\edward\addsub\PtDoubleZ1.cpp" />
+    <ClCompile Include="src\math\edward\addsub\PtNegate.cpp" />
+    <ClCompile Include="src\math\edward\addsub\PtSubtract.cpp" />
+    <ClCompile Include="src\math\edward\io\PtFillRandomX.cpp" />
+    <ClCompile Include="src\math\edward\io\PtGenerate.cpp" />
+    <ClCompile Include="src\math\edward\io\PtNormalize.cpp" />
+    <ClCompile Include="src\math\edward\io\PtSolveAffineY.cpp" />
+    <ClCompile Include="src\math\edward\io\PtValidAffine.cpp" />
+    <ClCompile Include="src\math\edward\io\SaveAffineX.cpp" />
+    <ClCompile Include="src\math\edward\io\SaveAffineXY.cpp" />
+    <ClCompile Include="src\math\edward\mul\PtMultiply.cpp" />
+    <ClCompile Include="src\math\edward\mul\PtMultiplyPrecomp.cpp" />
+    <ClCompile Include="src\math\edward\mul\PtPrecompAddSub.cpp" />
+    <ClCompile Include="src\math\edward\mul\RefMul.cpp" />
+    <ClCompile Include="src\math\mersenne\addsub\MrAdd.cpp" />
+    <ClCompile Include="src\math\mersenne\addsub\MrNegate.cpp" />
+    <ClCompile Include="src\math\mersenne\addsub\MrSubtract.cpp" />
+    <ClCompile Include="src\math\mersenne\expm\MrInvert.cpp" />
+    <ClCompile Include="src\math\mersenne\expm\MrSquareRoot.cpp" />
+    <ClCompile Include="src\math\mersenne\mul\MrMultiply.cpp" />
+    <ClCompile Include="src\math\mersenne\mul\MrMultiplyX.cpp" />
+    <ClCompile Include="src\math\mersenne\mul\MrSquare.cpp" />
+    <ClCompile Include="src\math\mersenne\reduce\MrReduce.cpp" />
+    <ClCompile Include="src\math\mersenne\reduce\MrReduceProduct.cpp" />
+    <ClCompile Include="src\math\montgomery\addsub\MonAdd.cpp" />
+    <ClCompile Include="src\math\montgomery\addsub\MonNegate.cpp" />
+    <ClCompile Include="src\math\montgomery\addsub\MonSubtract.cpp" />
+    <ClCompile Include="src\math\montgomery\expm\IsRabinMillerPrime.cpp" />
+    <ClCompile Include="src\math\montgomery\expm\MonExpMod.cpp" />
+    <ClCompile Include="src\math\montgomery\mul\MonMultiply.cpp" />
+    <ClCompile Include="src\math\montgomery\mul\MonSquare.cpp" />
+    <ClCompile Include="src\math\montgomery\reduce\MonInput.cpp" />
+    <ClCompile Include="src\math\montgomery\reduce\MonOutput.cpp" />
+    <ClCompile Include="src\math\montgomery\reduce\MonReduceProduct.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Add.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Add1.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\AddX.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Compare.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Double.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\DoubleAdd.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Negate.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Shift.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\Subtract.cpp" />
+    <ClCompile Include="src\math\rtl\addsub\SubtractX.cpp" />
+    <ClCompile Include="src\math\rtl\div\Divide.cpp" />
+    <ClCompile Include="src\math\rtl\div\DivideAsm64.cpp" />
+    <ClCompile Include="src\math\rtl\div\DivideGeneric.cpp" />
+    <ClCompile Include="src\math\rtl\div\ModularInverse.cpp" />
+    <ClCompile Include="src\math\rtl\div\MulMod.cpp" />
+    <ClCompile Include="src\math\rtl\div\MultiplicativeInverse.cpp" />
+    <ClCompile Include="src\math\rtl\io\Load.cpp" />
+    <ClCompile Include="src\math\rtl\io\LoadString.cpp" />
+    <ClCompile Include="src\math\rtl\io\Save.cpp" />
+    <ClCompile Include="src\math\rtl\mul\CombaMul.cpp" />
+    <ClCompile Include="src\math\rtl\mul\Multiply.cpp" />
+    <ClCompile Include="src\math\rtl\mul\MultiplyX.cpp" />
+    <ClCompile Include="src\math\rtl\mul\MultiplyXAdd.cpp" />
+    <ClCompile Include="src\math\rtl\mul\Square.cpp" />
+    <ClCompile Include="src\net\DNSClient.cpp" />
+    <ClCompile Include="src\net\Sockets.cpp" />
+    <ClCompile Include="src\net\SphynxClient.cpp" />
+    <ClCompile Include="src\net\SphynxServer.cpp" />
+    <ClCompile Include="src\net\SphynxTransport.cpp" />
+    <ClCompile Include="src\net\ThreadPoolSockets.cpp" />
+    <ClCompile Include="src\net\win\TCPClient.cpp" />
+    <ClCompile Include="src\net\win\TCPConnexion.cpp" />
+    <ClCompile Include="src\net\win\TCPServer.cpp" />
+    <ClCompile Include="src\net\win\UDPEndpoint.cpp" />
+    <ClCompile Include="src\parse\BitStream.cpp" />
+    <ClCompile Include="src\parse\BufferTok.cpp" />
+    <ClCompile Include="src\parse\MessageRouter.cpp" />
+    <ClCompile Include="src\port\AlignedAlloc.cpp" />
+    <ClCompile Include="src\port\EndianNeutral.cpp" />
+    <ClCompile Include="src\rand\MersenneTwister.cpp" />
+    <ClCompile Include="src\rand\StdRand.cpp" />
+    <ClCompile Include="src\threads\Mutex.cpp" />
+    <ClCompile Include="src\threads\RegionAllocator.cpp" />
+    <ClCompile Include="src\threads\RWLock.cpp" />
+    <ClCompile Include="src\threads\Thread.cpp" />
+    <ClCompile Include="src\threads\ThreadPool.cpp" />
+    <ClCompile Include="src\threads\WaitableFlag.cpp" />
+    <ClCompile Include="src\time\Clock.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\math\big_x64_elf.asm" />
+    <None Include="src\math\big_x64_mscoff.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AllCodec.hpp" />
+    <ClInclude Include="AllCommon.hpp" />
+    <ClInclude Include="AllCrypt.hpp" />
+    <ClInclude Include="AllFramework.hpp" />
+    <ClInclude Include="AllGraphics.hpp" />
+    <ClInclude Include="AllMath.hpp" />
+    <ClInclude Include="AllTunnel.hpp" />
+    <ClInclude Include="asm\big_x64_asm.hpp" />
+    <ClInclude Include="codec\RangeCoder.hpp" />
+    <ClInclude Include="Config.hpp" />
+    <ClInclude Include="crypt\cookie\CookieJar.hpp" />
+    <ClInclude Include="crypt\hash\HMAC_MD5.hpp" />
+    <ClInclude Include="crypt\hash\ICryptHash.hpp" />
+    <ClInclude Include="crypt\hash\Skein.hpp" />
+    <ClInclude Include="crypt\pass\Passwords.hpp" />
+    <ClInclude Include="crypt\rand\Fortuna.hpp" />
+    <ClInclude Include="crypt\SecureCompare.hpp" />
+    <ClInclude Include="crypt\symmetric\ChaCha.hpp" />
+    <ClInclude Include="crypt\tunnel\AuthenticatedEncryption.hpp" />
+    <ClInclude Include="crypt\tunnel\EasyHandshake.hpp" />
+    <ClInclude Include="crypt\tunnel\KeyAgreement.hpp" />
+    <ClInclude Include="crypt\tunnel\KeyAgreementInitiator.hpp" />
+    <ClInclude Include="crypt\tunnel\KeyAgreementResponder.hpp" />
+    <ClInclude Include="crypt\tunnel\KeyMaker.hpp" />
+    <ClInclude Include="db\BombayTable.hpp" />
+    <ClInclude Include="db\BombayTableIndex.hpp" />
+    <ClInclude Include="gfx\LoadBitmap.hpp" />
+    <ClInclude Include="gfx\LoadPNG.hpp" />
+    <ClInclude Include="gfx\Matrix.hpp" />
+    <ClInclude Include="gfx\Quaternion.hpp" />
+    <ClInclude Include="gfx\Scalar.hpp" />
+    <ClInclude Include="gfx\Vector.hpp" />
+    <ClInclude Include="hash\MurmurHash2.hpp" />
+    <ClInclude Include="io\AsyncBuffer.hpp" />
+    <ClInclude Include="io\Base64.hpp" />
+    <ClInclude Include="io\Logging.hpp" />
+    <ClInclude Include="io\MMapFile.hpp" />
+    <ClInclude Include="io\PackageManager.hpp" />
+    <ClInclude Include="io\Settings.hpp" />
+    <ClInclude Include="io\ThreadPoolFiles.hpp" />
+    <ClInclude Include="lang\Strings.hpp" />
+    <ClInclude Include="math\BigMontgomery.hpp" />
+    <ClInclude Include="math\BigPseudoMersenne.hpp" />
+    <ClInclude Include="math\BigRTL.hpp" />
+    <ClInclude Include="math\BigTwistedEdwards.hpp" />
+    <ClInclude Include="math\BitMath.hpp" />
+    <ClInclude Include="math\Legs.hpp" />
+    <ClInclude Include="net\bsd\TCPClient.hpp" />
+    <ClInclude Include="net\bsd\TCPConnection.hpp" />
+    <ClInclude Include="net\bsd\TCPServer.hpp" />
+    <ClInclude Include="net\bsd\UDPEndpoint.hpp" />
+    <ClInclude Include="net\DNSClient.hpp" />
+    <ClInclude Include="net\generic\TCPClient.hpp" />
+    <ClInclude Include="net\generic\TCPConnection.hpp" />
+    <ClInclude Include="net\generic\TCPServer.hpp" />
+    <ClInclude Include="net\generic\UDPEndpoint.hpp" />
+    <ClInclude Include="net\linux\TCPClient.hpp" />
+    <ClInclude Include="net\linux\TCPConnection.hpp" />
+    <ClInclude Include="net\linux\TCPServer.hpp" />
+    <ClInclude Include="net\linux\UDPEndpoint.hpp" />
+    <ClInclude Include="net\Sockets.hpp" />
+    <ClInclude Include="net\SphynxClient.hpp" />
+    <ClInclude Include="net\SphynxCollexion.hpp" />
+    <ClInclude Include="net\SphynxServer.hpp" />
+    <ClInclude Include="net\SphynxTransport.hpp" />
+    <ClInclude Include="net\ThreadPoolSockets.hpp" />
+    <ClInclude Include="net\win\TCPClient.hpp" />
+    <ClInclude Include="net\win\TCPConnection.hpp" />
+    <ClInclude Include="net\win\TCPConnexion.hpp" />
+    <ClInclude Include="net\win\TCPServer.hpp" />
+    <ClInclude Include="net\win\UDPEndpoint.hpp" />
+    <ClInclude Include="parse\BitStream.hpp" />
+    <ClInclude Include="parse\BufferStream.hpp" />
+    <ClInclude Include="parse\BufferTok.hpp" />
+    <ClInclude Include="parse\FastDelegate.h" />
+    <ClInclude Include="parse\MessageRouter.hpp" />
+    <ClInclude Include="Platform.hpp" />
+    <ClInclude Include="port\AlignedAlloc.hpp" />
+    <ClInclude Include="port\EndianNeutral.hpp" />
+    <ClInclude Include="port\WindowsInclude.hpp" />
+    <ClInclude Include="rand\IRandom.hpp" />
+    <ClInclude Include="rand\MersenneTwister.hpp" />
+    <ClInclude Include="rand\StdRand.hpp" />
+    <ClInclude Include="Singleton.hpp" />
+    <ClInclude Include="threads\Atomic.hpp" />
+    <ClInclude Include="threads\LocklessFIFO.hpp" />
+    <ClInclude Include="threads\Mutex.hpp" />
+    <ClInclude Include="threads\RegionAllocator.hpp" />
+    <ClInclude Include="threads\RWLock.hpp" />
+    <ClInclude Include="threads\Thread.hpp" />
+    <ClInclude Include="threads\ThreadPool.hpp" />
+    <ClInclude Include="threads\WaitableFlag.hpp" />
+    <ClInclude Include="time\Clock.hpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

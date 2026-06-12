@@ -30,7 +30,7 @@
 #define CAT_PACKAGE_MANAGER_HPP
 
 #include <cat/Platform.hpp>
-#include <cat/port/FastDelegate.h>
+#include <cat/parse/FastDelegate.h>
 
 namespace cat {
 

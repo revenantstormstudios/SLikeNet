@@ -1,1 +1,14 @@
 build/
+*.vsidx
+*.obj
+*.ipch
+/.vs
+*.log
+*.tlog
+*.pdb
+*.idb
+*.lib
+*.user
+*.cache
+*.exp
+*.dll

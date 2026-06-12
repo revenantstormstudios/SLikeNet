@@ -1,0 +1,4 @@
+E:\Causation\Dependencies\SLikeNet\DependentExtensions\Swig\CSharpTestApp_RakNetCompatibility\obj\x64\Debug\CSharpTestApp_RakNetCompatibility.csproj.AssemblyReference.cache
+E:\Causation\Dependencies\SLikeNet\DependentExtensions\Swig\CSharpTestApp_RakNetCompatibility\obj\x64\Debug\CSharpTestApp_RakNetCompatibility.csproj.SuggestedBindingRedirects.cache
+E:\Causation\Dependencies\SLikeNet\DependentExtensions\Swig\CSharpTestApp_RakNetCompatibility\obj\x64\Debug\CSharpTestApp_RakNetCompat.exe.config
+E:\Causation\Dependencies\SLikeNet\DependentExtensions\Swig\CSharpTestApp_RakNetCompatibility\obj\x64\Debug\CSharpTestApp_RakNetCompatibility.csproj.CoreCompileInputs.cache

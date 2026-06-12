@@ -30,7 +30,7 @@
 #define CAT_THREAD_POOL_FILES_HPP
 
 #include <cat/threads/ThreadPool.hpp>
-#include <cat/port/FastDelegate.h>
+#include <cat/parse/FastDelegate.h>
 
 #if defined(CAT_OS_WINDOWS)
 # include <cat/port/WindowsInclude.hpp>

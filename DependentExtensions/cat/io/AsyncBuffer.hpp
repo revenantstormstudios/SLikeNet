@@ -30,7 +30,7 @@
 #define CAT_ASYNC_BUFFER_HPP
 
 #include <cat/Platform.hpp>
-#include <cat/port/FastDelegate.h>
+#include <cat/parse/FastDelegate.h>
 
 #if defined(CAT_OS_WINDOWS)
 # include <cat/port/WindowsInclude.hpp>
