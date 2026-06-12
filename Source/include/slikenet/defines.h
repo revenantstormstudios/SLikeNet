@@ -53,7 +53,7 @@
 /// This allows you to keep existing code which was compatible with RakNet 4.082 unmodified and
 /// use SLikeNet as an in-place replacement for the RakNet library without having to modify any
 /// of your code.
-// #define RAKNET_COMPATIBILITY
+#define RAKNET_COMPATIBILITY
 
 /// Define __BITSTREAM_NATIVE_END to NOT support endian swapping in the BitStream class.  This is faster and is what you should use
 /// unless you actually plan to have different endianness systems connect to each other
