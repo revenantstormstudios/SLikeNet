@@ -150,7 +150,7 @@ void ReplicaManager3::AutoCreateConnectionList(
 			Connection_RM3 *connection = AllocConnection(rakPeerInterface->GetSystemAddressFromGuid(participantListIn[index]), participantListIn[index]);
 			if (connection)
 			{
-				PushConnection(connection);
+				PushConnection(connection, worldId);
 				participantListOut.Push(connection, _FILE_AND_LINE_);
 			}
 		}
@@ -223,7 +223,7 @@ SLNet::Connection_RM3 * ReplicaManager3::PopConnection(unsigned int index, World
 	// automatically from the first system to reference the object. However, if an object changes
 	// owners then it is not going to be returned here, and therefore QueryActionOnPopConnection()
 	// will not be called for the new owner.
-	GetReplicasCreatedByGuid(guid, replicaList);
+	GetReplicasCreatedByGuid(guid, replicaList, worldId);
 
 	for (index2=0; index2 < replicaList.Size(); index2++)
 	{
@@ -256,7 +256,7 @@ SLNet::Connection_RM3 * ReplicaManager3::PopConnection(unsigned int index, World
 		}
 	}
 
-	BroadcastDestructionList(broadcastList, connection->GetSystemAddress());
+	BroadcastDestructionList(broadcastList, connection->GetSystemAddress(), worldId);
 	for (index2=0; index2 < destructionList.Size(); index2++)
 	{
 		// Do lookup in case DeallocReplica destroyed one of of the later Replica3 instances in the list
@@ -299,6 +299,9 @@ void ReplicaManager3::Reference(SLNet::Replica3 *replica3, WorldId worldId)
 	RM3World *world = worldsArray[worldId];
 
 	unsigned int index = ReferenceInternal(replica3, worldId);
+
+	// Set Replica's worldId on reference so that it may be dereferenced properly later
+	replica3->worldId = worldId;
 
 	if (index!=(unsigned int)-1)
 	{
@@ -1000,9 +1003,33 @@ void ReplicaManager3::OnClosedConnection(const SystemAddress &systemAddress, Rak
 	(void) systemAddress;
 	if (autoDestroyConnections)
 	{
-		Connection_RM3 *connection = PopConnection(rakNetGUID);
-		if (connection)
-			DeallocConnection(connection);
+		// BEGIN EDITS: Try to discern the first worldId to which this GUID belongs
+		// TODO: Pop connection from all worlds?
+		WorldId index = 0;
+		bool found = false;
+		Connection_RM3* conn;
+
+		for (index; index < 255; index++)
+		{
+			// Only concerned with active Worlds
+			if (worldsArray[index] != nullptr)
+			{
+				conn = GetConnectionByGUID(rakNetGUID, index);
+				break;
+			}
+		}
+
+		// Need this check in case no worlds have been initialized
+		if (index < 255)
+		{
+			RakAssert(worldsArray[index] != 0 && "World not in use");
+
+
+			Connection_RM3* connection = PopConnection(rakNetGUID, index);
+			if (connection)
+				DeallocConnection(connection);
+		}
+		// END EDITS		
 	}
 }
 
@@ -1015,7 +1042,8 @@ void ReplicaManager3::OnNewConnection(const SystemAddress &systemAddress, RakNet
 	{
 		Connection_RM3 *connection = AllocConnection(systemAddress, rakNetGUID);
 		if (connection)
-			PushConnection(connection);
+			// Don't have a worldID to pass, so pass a default
+			PushConnection(connection, 0);
 	}
 }
 
@@ -1245,7 +1273,8 @@ PluginReceiveResult ReplicaManager3::OnConstruction(Packet *packet, unsigned cha
 				// Forward deletion by remote system
 				if (replica->QueryRelayDestruction(connection))
 					BroadcastDestruction(replica,connection->GetSystemAddress());
-				Dereference(replica);
+				// Pass Replica worldId to properly dereference
+				Dereference(replica, replica->worldId);
 				DeallocReplicaNoBroadcastDestruction(connection, replica);
 			}
 		}
@@ -1460,7 +1489,8 @@ void ReplicaManager3::BroadcastDestruction(Replica3 *replica, const SystemAddres
 {
 	DataStructures::List<Replica3*> replicaList;
 	replicaList.Push(replica, _FILE_AND_LINE_ );
-	BroadcastDestructionList(replicaList,exclusionAddress);
+	// Pass Replica worldId for proper destruction
+	BroadcastDestructionList(replicaList, exclusionAddress, replica->worldId);
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2402,6 +2432,7 @@ Replica3::Replica3()
 	forceSendUntilNextUpdate=false;
 	lsr=0;
 	referenceIndex = (uint32_t)-1;
+	worldId = 0;
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2410,7 +2441,7 @@ Replica3::~Replica3()
 {
 	if (replicaManager)
 	{
-		replicaManager->Dereference(this);
+		replicaManager->Dereference(this, worldId);
 	}
 }
 
