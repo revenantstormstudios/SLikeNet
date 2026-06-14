@@ -1003,33 +1003,19 @@ void ReplicaManager3::OnClosedConnection(const SystemAddress &systemAddress, Rak
 	(void) systemAddress;
 	if (autoDestroyConnections)
 	{
-		// BEGIN EDITS: Try to discern the first worldId to which this GUID belongs
-		// TODO: Pop connection from all worlds?
-		WorldId index = 0;
-		bool found = false;
-		Connection_RM3* conn;
-
-		for (index; index < 255; index++)
+		for (WorldId index = 0; index < 255; index++)
 		{
 			// Only concerned with active Worlds
 			if (worldsArray[index] != nullptr)
 			{
-				conn = GetConnectionByGUID(rakNetGUID, index);
+				Connection_RM3* connection = PopConnection(rakNetGUID, index);
+				if (connection)
+					DeallocConnection(connection);
+
+				// If replicas ever cross worlds (they shouldn't)... remove this break to continue scanning.
 				break;
 			}
-		}
-
-		// Need this check in case no worlds have been initialized
-		if (index < 255)
-		{
-			RakAssert(worldsArray[index] != 0 && "World not in use");
-
-
-			Connection_RM3* connection = PopConnection(rakNetGUID, index);
-			if (connection)
-				DeallocConnection(connection);
-		}
-		// END EDITS		
+		}		
 	}
 }
 
