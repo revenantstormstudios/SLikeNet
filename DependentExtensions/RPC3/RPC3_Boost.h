@@ -16,34 +16,15 @@
 #ifndef __RPC3_BOOST_H
 #define __RPC3_BOOST_H
 
-// Fixes
-// error C2504: 'boost::fusion::detail::invoke_impl<Function,Sequence,N,CBI,RandomAccess>' : base class undefined
-// This defines the maximum number of parameters you can have
-#ifndef BOOST_FUSION_INVOKE_MAX_ARITY
-#define BOOST_FUSION_INVOKE_MAX_ARITY 10
-#endif
-
-// Boost dependencies
-// Boost is assumed to be at C:\boost_1_43_0 based on the project settings
-// If this is not where you downloaded boost, change the project settings Configuration Properties / C/C++ / General / Additional Include Directories
-// If you don't have boost, get it from http://www.boost.org/users/download/
-// If you don't want to use boost, use RPC4 instead which relies on assembly but has fewer features
-#include "boost/type_traits.hpp"
-#include "boost/function.hpp"
-#include "boost/bind.hpp"
-#include "boost/mpl/if.hpp"
-#include "boost/mpl/apply.hpp"
-#include "boost/function_types/parameter_types.hpp"
-#include "boost/fusion/container/list/cons.hpp" // boost::fusion::nil
-#include "boost/fusion/include/push_back.hpp"
-#include "boost/fusion/include/invoke.hpp"
-#include "boost/fusion/tuple/tuple.hpp"
-#include "boost/fusion/tuple/make_tuple.hpp"
-#include "boost/fusion/functional/invocation/invoke.hpp"
-#include "boost/type_traits/is_array.hpp"
-
-// Not needed?
-//#include <boost/fusion/container/generation/make_vector.hpp>
+// This RPC system was originally powered by Boost. It has since been rewritten
+// to depend only on the C++ standard library (C++17 or later) and no longer
+// requires any third-party library.
+#include <functional>   // std::function, std::invoke
+#include <tuple>        // std::tuple, std::apply, std::get, std::tuple_size, std::tuple_element
+#include <type_traits>  // std::conditional_t, std::is_*_v, std::remove_*_t, std::bool_constant
+#include <utility>      // std::make_index_sequence, std::index_sequence
+#include <cassert>      // assert (was previously pulled in transitively via Boost)
+#include <cstring>      // memcpy
 
 #include "slikenet/NetworkIDManager.h"
 #include "slikenet/NetworkIDObject.h"
@@ -85,12 +66,12 @@ struct InvokeArgs
 	NetworkIDObject *thisPtr;
 };
 
-typedef boost::fusion::tuple<bool, boost::function<InvokeResultCodes (InvokeArgs)> > FunctionPointer;
+typedef std::tuple<bool, std::function<InvokeResultCodes (InvokeArgs)> > FunctionPointer;
 
 struct StrWithDestructor
 {
 	char *c;
-	~StrWithDestructor() {if (c) delete c;}
+	~StrWithDestructor() {if (c) delete[] c;}
 };
 
 enum RPC3TagFlag
@@ -108,17 +89,23 @@ struct RPC3Tag
 	unsigned char flag;
 };
 
+// Maximum number of parameters an RPC function may have
+// (formerly the Boost.Fusion macro BOOST_FUSION_INVOKE_MAX_ARITY)
+static const int RPC3_MAX_ARITY = 10;
+
 // Track the pointers tagged with SLNet::_RPC3::Deref
-static RPC3Tag __RPC3TagPtrs[BOOST_FUSION_INVOKE_MAX_ARITY+1];
+static RPC3Tag __RPC3TagPtrs[RPC3_MAX_ARITY+1];
 static int __RPC3TagHead=0;
 static int __RPC3TagTail=0;
 
 // If this assert hits, then SLNet::_RPC3::Deref was called more times than the argument was passed to the function
-static void __RPC3_Tag_AddHead(const RPC3Tag &p)
+// [[maybe_unused]]: these tag helpers are only referenced from the serialization paths, which are not
+// instantiated in every translation unit that includes this header.
+[[maybe_unused]] static void __RPC3_Tag_AddHead(const RPC3Tag &p)
 {
 	// Update tag if already in array
 	int i;
-	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%BOOST_FUSION_INVOKE_MAX_ARITY)
+	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%RPC3_MAX_ARITY)
 	{
 		if (__RPC3TagPtrs[i].v==p.v)
 		{
@@ -133,21 +120,21 @@ static void __RPC3_Tag_AddHead(const RPC3Tag &p)
 	}
 
 	__RPC3TagPtrs[__RPC3TagHead]=p;
-	__RPC3TagHead = (__RPC3TagHead + 1) % BOOST_FUSION_INVOKE_MAX_ARITY;
+	__RPC3TagHead = (__RPC3TagHead + 1) % RPC3_MAX_ARITY;
 	assert(__RPC3TagHead!=__RPC3TagTail);
 }
-static void __RPC3ClearTail(void) {
+[[maybe_unused]] static void __RPC3ClearTail(void) {
 	while (__RPC3TagTail!=__RPC3TagHead)
 	{
 		if (__RPC3TagPtrs[__RPC3TagTail].v==0)
-			__RPC3TagTail = (__RPC3TagTail+1) % BOOST_FUSION_INVOKE_MAX_ARITY;
+			__RPC3TagTail = (__RPC3TagTail+1) % RPC3_MAX_ARITY;
 		else
 			return;
 	}
 }
-static bool __RPC3ClearPtr(void* p, RPC3Tag *tag) {
+[[maybe_unused]] static bool __RPC3ClearPtr(void* p, RPC3Tag *tag) {
 	int i;
-	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%BOOST_FUSION_INVOKE_MAX_ARITY)
+	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%RPC3_MAX_ARITY)
 	{
 		if (__RPC3TagPtrs[i].v==p)
 		{
@@ -218,10 +205,9 @@ struct ReadPtr
 template< typename T >
 struct DoRead
 {
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<T*, SLNet::BitStream*>,
+	typedef std::conditional_t< std::is_convertible_v<T*, SLNet::BitStream*>,
 		ReadBitstream,
-		ReadPtr >::type type;
+		ReadPtr > type;
 };
 
 
@@ -232,7 +218,7 @@ struct ReadWithoutNetworkIDNoPtr
 	{
 //		printf("ReadWithoutNetworkIDNoPtr\n");
 
-		DoRead< typename boost::remove_pointer<T>::type >::type::apply(* (args.bitStream),&t);
+		DoRead< std::remove_pointer_t<T> >::type::apply(* (args.bitStream),&t);
 
 		return IRC_SUCCESS;
 	}
@@ -283,7 +269,7 @@ struct ReadWithNetworkIDPtr
 
 				if (t)
 				{
-					DoRead< typename boost::remove_pointer<T>::type >::type::apply(* (args.bitStream),t);
+					DoRead< std::remove_pointer_t<T> >::type::apply(* (args.bitStream),t);
 				}
 				else
 				{
@@ -320,7 +306,7 @@ struct ReadWithoutNetworkIDPtr
 			return IRC_SUCCESS;
 		}
 
-		typedef typename boost::remove_pointer< T >::type ActualObjectType;
+		typedef std::remove_pointer_t< T > ActualObjectType;
 
 		bool isArray=false;
 		unsigned int count;
@@ -335,12 +321,12 @@ struct ReadWithoutNetworkIDPtr
 		{
 			for (unsigned int i=0; i < count; i++)
 			{
-				DoRead< typename boost::remove_pointer<T>::type >::type::applyArray(* (args.bitStream),t+i);
+				DoRead< std::remove_pointer_t<T> >::type::applyArray(* (args.bitStream),t+i);
 			}
 		}
 		else
 		{
-			DoRead< typename boost::remove_pointer<T>::type >::type::apply(* (args.bitStream),t);
+			DoRead< std::remove_pointer_t<T> >::type::apply(* (args.bitStream),t);
 		}
 
 		return IRC_SUCCESS;
@@ -372,152 +358,116 @@ struct SetRPC3Ptr
 	}
 };
 
-/*
-template< typename T >
-struct ReadWithNetworkID
-{
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>
-		, typename ReadWithNetworkIDPtr<T> // true
-		, typename ReadWithNetworkIDNoPtr<T>
-	>::type type;
-};
-*/
-
 template< typename T >
 struct ReadWithoutNetworkID
 {
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>
+	typedef std::conditional_t< std::is_pointer_v<T>
 		, ReadWithoutNetworkIDPtr<T> // true
 		, ReadWithoutNetworkIDNoPtr<T>
-	>::type type;
+	> type;
 };
 
 template< typename T >
-struct identity 
-{
-	typedef T type;
-};
+struct IsRPC3Ptr : std::bool_constant< std::is_convertible_v<T, RPC3*> > {};
 
 template< typename T >
-struct IsRPC3Ptr
-{
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<T,RPC3*>,
-		boost::mpl::true_,
-		boost::mpl::false_>::type type;
-};
-
-template< typename T >
-struct ShouldReadNetworkID
-{
-	/*
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>,
-		typename identity<T>::type,
-		boost::add_pointer<T>>::type typeWithPtr;
-
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<typeWithPtr,NetworkIDObject*>,
-		boost::mpl::true_,
-		boost::mpl::false_>::type type;
-		*/
-
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<T,NetworkIDObject*>,
-		boost::mpl::true_,
-		boost::mpl::false_>::type type;
-};
+struct ShouldReadNetworkID : std::bool_constant< std::is_convertible_v<T, NetworkIDObject*> > {};
 
 template< typename T >
 struct GetReadFunction
 {
-	/*
-	typedef typename boost::mpl::if_<
-		typename ShouldReadNetworkID<T>::type
-		, typename ReadWithNetworkID<T>::type
-		, typename ReadWithoutNetworkID<T>::type
-	>::type type;
-	*/
-
-	typedef typename boost::mpl::if_<
-		typename ShouldReadNetworkID<T>::type
+	typedef std::conditional_t< ShouldReadNetworkID<T>::value
 		, ReadWithNetworkIDPtr<T>
 		, typename ReadWithoutNetworkID<T>::type
-	>::type type;
+	> type;
 };
 
 template< typename T >
 struct ProcessArgType
 {
-	typedef typename boost::mpl::if_<
-		typename IsRPC3Ptr<T>::type
+	typedef std::conditional_t< IsRPC3Ptr<T>::value
 		, SetRPC3Ptr<T>
 		, typename GetReadFunction<T>::type
-	>::type type;
+	> type;
 };
 
-template< typename Function
-	, class From = typename boost::mpl::begin< boost::function_types::parameter_types<Function> >::type
-	, class To   = typename boost::mpl::end< boost::function_types::parameter_types<Function> >::type
->
-struct BoostRPCInvoker
+// Compile-time traits describing a registered function's parameters.
+// Replaces boost::function_types::parameter_types + boost::mpl iteration.
+template <class F> struct RPCFunctionTraits;                       // primary template: intentionally undefined
+
+// Free function pointer
+template <class R, class... Args>
+struct RPCFunctionTraits<R(*)(Args...)>
 {
-	// add an argument to a Fusion cons-list for each parameter type
-	template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, Args const &args)
-	{
-		typedef typename boost::mpl::deref<From>::type arg_type;
-		typedef typename boost::mpl::next<From>::type next_iter_type;
-		typedef typename boost::remove_reference<arg_type>::type arg_type_no_ref;
-
-		arg_type_no_ref argType;
-		ProcessArgType< arg_type_no_ref >::type::apply(functionArgs, argType);
-
-		InvokeResultCodes irc = BoostRPCInvoker<Function, next_iter_type, To>::apply
-			( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
-
-		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
-		return irc;
-	}
+	static constexpr bool isMember = false;
+	typedef std::tuple<std::remove_reference_t<Args>...> StorageTuple;
 };
+template <class R, class... Args>
+struct RPCFunctionTraits<R(*)(Args...) noexcept> : RPCFunctionTraits<R(*)(Args...)> {};
 
-template< typename Function
-, class From = typename boost::mpl::begin< boost::function_types::parameter_types<Function> >::type
-, class To   = typename boost::mpl::end< boost::function_types::parameter_types<Function> >::type
->
-struct BoostRPCInvoker_ThisPtr
+// Member function pointer. The object is supplied separately (from thisPtr), so it is NOT stored.
+template <class R, class C, class... Args>
+struct RPCFunctionTraits<R(C::*)(Args...)>
 {
-	// add an argument to a Fusion cons-list for each parameter type
-	template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, Args const &args)
-	{
-		typedef typename boost::mpl::deref<From>::type arg_type;
-		typedef typename boost::mpl::next<From>::type next_iter_type;
-
-		arg_type argType = (arg_type) *(functionArgs.thisPtr);
-
-		return BoostRPCInvoker<Function, next_iter_type, To>::apply
-			( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
-	}
+	static constexpr bool isMember = true;
+	typedef C ClassType;
+	typedef std::tuple<std::remove_reference_t<Args>...> StorageTuple;
 };
+template <class R, class C, class... Args>
+struct RPCFunctionTraits<R(C::*)(Args...) const>          : RPCFunctionTraits<R(C::*)(Args...)> {};
+template <class R, class C, class... Args>
+struct RPCFunctionTraits<R(C::*)(Args...) noexcept>       : RPCFunctionTraits<R(C::*)(Args...)> {};
+template <class R, class C, class... Args>
+struct RPCFunctionTraits<R(C::*)(Args...) const noexcept> : RPCFunctionTraits<R(C::*)(Args...)> {};
 
-template<typename Function, class To>
-struct BoostRPCInvoker<Function,To,To>
+// Deserialize every parameter from the bitstream, in order. The braced-initializer
+// expansion guarantees left-to-right evaluation, which is required because the wire
+// format is read sequentially. The leading 0 keeps the array non-empty for a 0-arg call.
+template <class Tuple, std::size_t... I>
+inline void RPC3DeserializeArgs(InvokeArgs &functionArgs, Tuple &storage, std::index_sequence<I...>)
 {
-	// the argument list is complete, now call the function
-	template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs&, Args const &args)
-	{
-		boost::fusion::invoke(func,args);
+	// The (void) casts keep this warning-clean under /W4 /WX for zero-parameter functions (empty pack).
+	(void)functionArgs; (void)storage;
+	int seq[] = { 0, ( (void)ProcessArgType< std::tuple_element_t<I, Tuple> >::type::apply(functionArgs, std::get<I>(storage)), 0 )... };
+	(void)seq;
+}
+template <class Tuple, std::size_t... I>
+inline void RPC3CleanupArgs(Tuple &storage, std::index_sequence<I...>)
+{
+	(void)storage;
+	int seq[] = { 0, ( (void)ProcessArgType< std::tuple_element_t<I, Tuple> >::type::Cleanup(std::get<I>(storage)), 0 )... };
+	(void)seq;
+}
 
-		return IRC_SUCCESS;
-	}
-};
+// Invoke a registered C function: deserialize args, call, then clean up (in that order).
+template <class Function>
+inline InvokeResultCodes RPC3InvokeFunction(Function func, InvokeArgs functionArgs)
+{
+	typedef typename RPCFunctionTraits<Function>::StorageTuple StorageTuple;
+	StorageTuple storage;                                                  // value-initializes each element
+	constexpr std::size_t argCount = std::tuple_size<StorageTuple>::value;
+	RPC3DeserializeArgs(functionArgs, storage, std::make_index_sequence<argCount>{});
+	std::apply(func, storage);
+	RPC3CleanupArgs(storage, std::make_index_sequence<argCount>{});
+	return IRC_SUCCESS;
+}
+
+// Invoke a registered C++ member function. The object is recovered from thisPtr
+// (a NetworkIDObject*) via the same static downcast the original Boost code performed.
+template <class Function>
+inline InvokeResultCodes RPC3InvokeMemberFunction(Function func, InvokeArgs functionArgs)
+{
+	typedef RPCFunctionTraits<Function> Traits;
+	typedef typename Traits::StorageTuple StorageTuple;
+	typedef typename Traits::ClassType ClassType;
+	StorageTuple storage;
+	constexpr std::size_t argCount = std::tuple_size<StorageTuple>::value;
+	RPC3DeserializeArgs(functionArgs, storage, std::make_index_sequence<argCount>{});
+	ClassType &obj = static_cast<ClassType &>(*functionArgs.thisPtr);
+	std::apply([&](auto&... unpackedArgs){ std::invoke(func, obj, unpackedArgs...); }, storage);
+	RPC3CleanupArgs(storage, std::make_index_sequence<argCount>{});
+	return IRC_SUCCESS;
+}
 
 template <typename T>
 struct DoNothing
@@ -563,10 +513,9 @@ struct WritePtr
 template< typename T >
 struct DoWrite
 {
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<T*, SLNet::BitStream*>,
+	typedef std::conditional_t< std::is_convertible_v<T*, SLNet::BitStream*>,
 		WriteBitstream,
-		WritePtr >::type type;
+		WritePtr > type;
 };
 
 template <typename T>
@@ -601,7 +550,7 @@ struct WriteWithNetworkIDPtr
 				BitSize_t bitsUsed1=bitStream.GetNumberOfBitsUsed();
 				bitStream.Write(bitsUsed1);
 				bitsUsed1=bitStream.GetNumberOfBitsUsed();
-				DoWrite< typename boost::remove_pointer<T>::type >::type::apply(bitStream,t);
+				DoWrite< std::remove_pointer_t<T> >::type::apply(bitStream,t);
 				BitSize_t writeOffset2 = bitStream.GetWriteOffset();
 				BitSize_t bitsUsed2=bitStream.GetNumberOfBitsUsed();
 				bitStream.SetWriteOffset(writeOffset1);
@@ -617,7 +566,7 @@ struct WriteWithoutNetworkIDNoPtr
 {
 	static void apply(SLNet::BitStream &bitStream, T& t)
 	{
-		DoWrite< typename boost::remove_pointer<T>::type >::type::apply(bitStream,&t);
+		DoWrite< std::remove_pointer_t<T> >::type::apply(bitStream,&t);
 	}
 };
 
@@ -643,11 +592,11 @@ struct WriteWithoutNetworkIDPtr
 		if (isArray)
 		{
 			for (unsigned int i=0; i < tag.count; i++)
-				DoWrite< typename boost::remove_pointer<T>::type >::type::applyArray(bitStream,t+i);
+				DoWrite< std::remove_pointer_t<T> >::type::applyArray(bitStream,t+i);
 		}
 		else
 		{
-			DoWrite< typename boost::remove_pointer<T>::type >::type::apply(bitStream,t);
+			DoWrite< std::remove_pointer_t<T> >::type::apply(bitStream,t);
 		}
 		
 	}
@@ -656,53 +605,28 @@ struct WriteWithoutNetworkIDPtr
 template <typename T>
 struct SerializeCallParameterBranch
 {
-	typedef typename boost::mpl::if_<
-		typename IsRPC3Ptr<T>::type
+	typedef std::conditional_t< IsRPC3Ptr<T>::value
 		, DoNothing<T>
 		, WriteWithoutNetworkIDPtr<T>
-	>::type typeCheck1;
+	> typeCheck1;
 
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>
+	typedef std::conditional_t< std::is_pointer_v<T>
 		, typeCheck1
 		, WriteWithoutNetworkIDNoPtr<T>
-	>::type typeCheck2;
+	> typeCheck2;
 
-	typedef typename boost::mpl::if_<
-		typename ShouldReadNetworkID<T>::type
+	typedef std::conditional_t< ShouldReadNetworkID<T>::value
 		, WriteWithNetworkIDPtr<T>
 		, typeCheck2
-	>::type type;
-};
-template<typename Function>
-struct GetBoundPointer_C
-{
-//	typedef typename GetBoundPointer_C type;
-	static FunctionPointer GetBoundPointer(Function f)
-	{
-		return FunctionPointer(false, boost::bind( & BoostRPCInvoker<Function>::template apply<boost::fusion::nil>, f, _1, boost::fusion::nil() ));
-	}
-};
-
-template<typename Function>
-struct GetBoundPointer_CPP
-{
-//	typedef typename GetBoundPointer_CPP type;
-	static FunctionPointer GetBoundPointer(Function f)
-	{
-		return FunctionPointer(true, boost::bind( & BoostRPCInvoker_ThisPtr<Function>::template apply<boost::fusion::nil>, f, _1, boost::fusion::nil() ));
-	}
+	> type;
 };
 template<typename Function>
 FunctionPointer GetBoundPointer(Function f)
 {
-	return boost::mpl::if_<
-	boost::is_member_function_pointer<Function>
-	, GetBoundPointer_CPP<Function>
-	, GetBoundPointer_C<Function>
-	>::type::GetBoundPointer(f);
-	
-//	return FunctionPointer(true, boost::bind( & BoostRPCInvoker<Function>::template apply<boost::fusion::nil>, f, _1, boost::fusion::nil() ) );
+	if constexpr (std::is_member_function_pointer_v<Function>)
+		return FunctionPointer(true,  [f](InvokeArgs args){ return RPC3InvokeMemberFunction<Function>(f, args); });
+	else
+		return FunctionPointer(false, [f](InvokeArgs args){ return RPC3InvokeFunction<Function>(f, args); });
 }
 
 

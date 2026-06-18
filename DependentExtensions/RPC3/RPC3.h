@@ -20,7 +20,8 @@
 #ifndef __RPC_3_H
 #define __RPC_3_H
 
-// Most of the internals of the boost code to make this work
+// Most of the internals that make this work (originally Boost-based, now implemented
+// using only the C++ standard library)
 #include "RPC3_Boost.h"
 #include "slikenet/PluginInterface2.h"
 #include "slikenet/PacketPriority.h"
@@ -32,7 +33,7 @@
 #include "slikenet/DS_OrderedList.h"
 
 /// \defgroup RPC_3_GROUP RPC3
-/// \brief Remote procedure calls, powered by the 3rd party library Boost
+/// \brief Remote procedure calls, implemented with the C++ standard library (no third-party dependency)
 /// \details
 /// \ingroup PLUGINS_GROUP
 

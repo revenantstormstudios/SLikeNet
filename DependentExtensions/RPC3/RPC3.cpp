@@ -340,8 +340,8 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 		{
 // 			for (functionIndex=0; functionIndex < localFunctions.Size(); functionIndex++)
 // 			{
-// 				bool isObjectMember = boost::fusion::get<0>(localFunctions[functionIndex].functionPointer);
-// 				//		boost::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = boost::fusion::get<0>(localFunctions[functionIndex].functionPointer);
+// 				bool isObjectMember = std::get<0>(localFunctions[functionIndex].functionPointer);
+// 				//		std::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = std::get<0>(localFunctions[functionIndex].functionPointer);
 // 
 // 				if (isObjectMember == (networkIdObject!=0) &&
 // 					strcmp(localFunctions[functionIndex].identifier.C_String(), strIdentifier)==0)
@@ -367,7 +367,7 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 			}
 			lrpcf = localFunctions.ItemAtIndex(functionIndex);
 
-			bool isObjectMember = boost::fusion::get<0>(lrpcf->functionPointer);
+			bool isObjectMember = std::get<0>(lrpcf->functionPointer);
 			if (isObjectMember==true && networkIdObject==0)
 			{
 				// Failed - Calling C++ function as C function
@@ -395,12 +395,12 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 
 	if (isCall)
 	{
-		/*bool isObjectMember = */ boost::fusion::get<0>(lrpcf->functionPointer);
-		boost::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = boost::fusion::get<1>(lrpcf->functionPointer);
-		//	int arity = boost::fusion::get<2>(localFunctions[functionIndex].functionPointer);
+		/*bool isObjectMember = */ std::get<0>(lrpcf->functionPointer);
+		std::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = std::get<1>(lrpcf->functionPointer);
+		//	int arity = std::get<2>(localFunctions[functionIndex].functionPointer);
 		//	if (isObjectMember)
 		//		arity--; // this pointer
-		if (functionPtr==0)
+		if (!functionPtr)
 		{
 			// Failed - Function was previously registered, but isn't registered any longer
 			SendError(systemAddress, RPC_ERROR_FUNCTION_NO_LONGER_REGISTERED, strIdentifier);
@@ -467,9 +467,9 @@ void RPC3::InvokeSignal(DataStructures::HashIndex functionIndex, SLNet::BitStrea
 		functionArgs.bitStream->ResetReadPointer();
 
 		// #med - review whether the call is actually required at all
-		boost::fusion::get<0>(localSlot->slotObjects[i].functionPointer);
-		boost::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = boost::fusion::get<1>(localSlot->slotObjects[i].functionPointer);
-		if (functionPtr==0)
+		std::get<0>(localSlot->slotObjects[i].functionPointer);
+		std::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = std::get<1>(localSlot->slotObjects[i].functionPointer);
+		if (!functionPtr)
 		{
 			if (temporarilySetUSA==false)
 			{
