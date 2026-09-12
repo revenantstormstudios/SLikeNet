@@ -3449,9 +3449,15 @@ void RakPeer::ParseConnectionRequestPacket( RakPeer::RemoteSystemStruct *remoteS
 	bs.IgnoreBytes(sizeof(MessageID));
 	RakNetGUID guid;
 	bs.Read(guid);
-	SLNet::Time incomingTimestamp;
-	bs.Read(incomingTimestamp);
-	unsigned char doSecurity;
+	// incomingTimestamp is echoed back to the sender inside ID_CONNECTION_REQUEST_ACCEPTED, and
+	// BitStream::Read leaves its destination untouched when the stream is too short. Unlike
+	// ID_NEW_INCOMING_CONNECTION and ID_CONNECTION_REQUEST_ACCEPTED, this message had no minimum
+	// length check, so a 1-byte ID_CONNECTION_REQUEST from an unauthenticated peer returned this
+	// slot's stale stack contents. Initialize it and stop if the read fails.
+	SLNet::Time incomingTimestamp = 0;
+	if (bs.Read(incomingTimestamp)==false)
+		return;
+	unsigned char doSecurity = 0;
 	bs.Read(doSecurity);
 
 #if LIBCAT_SECURITY==1
