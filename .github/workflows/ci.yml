@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, 'security_*' ]
+  pull_request:
+    branches: [ master ]
+
+# The library is built with SLIKENET_ENABLE_CRYPTO=OFF so that no OpenSSL provisioning is
+# needed on the runners. Only Source/src/crypto requires OpenSSL, and nothing else in Source/
+# includes those headers.
+#
+# The ASan jobs are the ones that give the security regression tests their teeth: without a
+# sanitizer an out-of-bounds access usually just reads or writes adjacent memory and the test
+# passes regardless.
+
+jobs:
+  windows:
+    name: Windows (${{ matrix.name }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: msvc
+            asan: 'OFF'
+          - name: msvc-asan
+            asan: 'ON'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          -DSLIKENET_ENABLE_CRYPTO=OFF
+          -DSLIKENET_ENABLE_SAMPLES=OFF
+          -DSLIKENET_ENABLE_DLL=OFF
+          -DSLIKENET_ENABLE_ASAN=${{ matrix.asan }}
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  linux:
+    name: Linux (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc
+            asan: 'OFF'
+          - name: gcc-asan
+            asan: 'ON'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DSLIKENET_ENABLE_CRYPTO=OFF
+          -DSLIKENET_ENABLE_SAMPLES=OFF
+          -DSLIKENET_ENABLE_DLL=OFF
+          -DSLIKENET_ENABLE_ASAN=${{ matrix.asan }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
