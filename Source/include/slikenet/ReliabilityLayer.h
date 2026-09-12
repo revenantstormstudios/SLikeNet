@@ -185,9 +185,15 @@ public:
 	/// \param[in] mtuSize maximum datagram size
 	/// \retval true Success
 	/// \retval false Modified packet
+	/// \param[out] isMaliciousDatagram Optional. Set to true when the datagram was rejected because it
+	/// could not have been produced by a conforming peer - a malformed acknowledgement range list, or
+	/// a range whose maxIndex is the reserved 0xFFFFFFFF value. It is deliberately NOT set when the
+	/// datagram merely fails authenticated decryption, because that also happens for duplicated or
+	/// heavily reordered datagrams from a legitimate peer. The caller may use it to drop the
+	/// connection; a false return with this left false means "discard this datagram only".
 	bool HandleSocketReceiveFromConnectedPlayer(
 		const char *buffer, unsigned int length, SystemAddress &systemAddress, DataStructures::List<PluginInterface2*> &messageHandlerList, int mtuSize,
-		RakNetSocket2 *s, RakNetRandom *rnr, CCTimeType timeRead, BitStream &updateBitStream);
+		RakNetSocket2 *s, RakNetRandom *rnr, CCTimeType timeRead, BitStream &updateBitStream, bool *isMaliciousDatagram = nullptr);
 
 	/// This allocates bytes and writes a user-level message to those bytes.
 	/// \param[out] data The message

@@ -697,12 +697,15 @@ void ReliabilityLayer::FreeThreadSafeMemory( void )
 //-------------------------------------------------------------------------------------------------------
 bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 	const char *buffer, unsigned int length, SystemAddress &systemAddress, DataStructures::List<PluginInterface2*> &messageHandlerList, int mtuSize,
-	RakNetSocket2 *s, RakNetRandom *rnr, CCTimeType timeRead, BitStream &updateBitStream)
+	RakNetSocket2 *s, RakNetRandom *rnr, CCTimeType timeRead, BitStream &updateBitStream, bool *isMaliciousDatagram)
 {
 	// unreferenced parameters
 	(void)mtuSize;
 
 	RakAssert(buffer != nullptr);
+
+	if (isMaliciousDatagram != nullptr)
+		*isMaliciousDatagram = false;
 
 #if CC_TIME_TYPE_BYTES == 4
 	timeRead /= 1000;
@@ -787,6 +790,8 @@ bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 				messageHandlerList[messageHandlerIndex]->OnReliabilityLayerNotification("incomingAcks.Deserialize failed", BYTES_TO_BITS(length), systemAddress, true);
 			}
 
+			if (isMaliciousDatagram != nullptr)
+				*isMaliciousDatagram = true;
 			return false;
 		}
 
@@ -823,6 +828,8 @@ bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 				}
 
 				// it's an invalid incoming package --- let's abort processing (there's no point in continuing processing other ranges if the package is invalid)
+				if (isMaliciousDatagram != nullptr)
+					*isMaliciousDatagram = true;
 				return false;
 			}
 
@@ -882,6 +889,8 @@ bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 			}
 
 			// it's an invalid incoming package --- let's abort processing (there's no point in continuing processing other ranges if the package is invalid)
+			if (isMaliciousDatagram != nullptr)
+				*isMaliciousDatagram = true;
 			return false;
 		}
 		for (i = 0; i < incomingNAKs.ranges.Size(); i++) {
@@ -893,6 +902,8 @@ bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 					messageHandlerList[messageHandlerIndex]->OnReliabilityLayerNotification("incomingNAKs maxIndex is max value", BYTES_TO_BITS(length), systemAddress, true);
 				}
 
+				if (isMaliciousDatagram != nullptr)
+					*isMaliciousDatagram = true;
 				return false;
 			}
 			// Sanity check
