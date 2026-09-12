@@ -62,6 +62,16 @@ ELSE(WIN32 AND NOT UNIX)
 	set(SLIKENET_LIBRARY_LIBS ${SLIKENET_LIBRARY_LIBS} pthread)
 ENDIF(WIN32 AND NOT UNIX)
 
+# Source/src/SecureHandshake.cpp #includes the libcat .cpp files directly, so with
+# LIBCAT_SECURITY enabled the "#pragma comment(lib, big_x64.lib)" in cat/src/math/BigRTL.cpp
+# ends up inside SecureHandshake.obj. Every executable that pulls that object out of the
+# library therefore needs the prebuilt assembly library on its link path. It ships in the tree,
+# but no directory was ever added for it, so such a link failed with LNK1104. The pragma is
+# guarded on MSVC plus 64-bit, so match that here.
+IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+	link_directories(${SLikeNet_SOURCE_DIR}/DependentExtensions/cat/lib/cat)
+ENDIF()
+
 # enable C++11 language support for GCC
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
