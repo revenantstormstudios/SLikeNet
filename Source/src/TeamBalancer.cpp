@@ -388,13 +388,16 @@ void TeamBalancer::OnStatusUpdateToNewHost(Packet *packet)
 		bsIn.Read(tm.currentTeam);
 		bsIn.Read(tm.requestedTeam);
 
-		if (tm.currentTeam!=UNASSIGNED_TEAM_ID && tm.currentTeam>teamLimits.Size())
+		// Valid team ids are 0 .. teamLimits.Size()-1, so the comparison has to be >= - with >
+		// a peer could pass exactly Size() and index one element past the end of both
+		// teamLimits and teamMemberCounts, whose allocations are sized exactly.
+		if (tm.currentTeam!=UNASSIGNED_TEAM_ID && tm.currentTeam>=teamLimits.Size())
 		{
 			RakAssert("Current team out of range in TeamBalancer::OnStatusUpdateToNewHost" && 0);
 			return;
 		}
 
-		if (tm.requestedTeam!=UNASSIGNED_TEAM_ID && tm.requestedTeam>teamLimits.Size())
+		if (tm.requestedTeam!=UNASSIGNED_TEAM_ID && tm.requestedTeam>=teamLimits.Size())
 		{
 			RakAssert("Requested team out of range in TeamBalancer::OnStatusUpdateToNewHost" && 0);
 			return;
@@ -500,7 +503,8 @@ void TeamBalancer::OnRequestSpecificTeam(Packet *packet)
 		return;
 	}
 
-	if (tm.requestedTeam>teamLimits.Size())
+	// >= rather than >: teamLimits is indexed 0 .. Size()-1 and its allocation is exact.
+	if (tm.requestedTeam>=teamLimits.Size())
 	{
 		RakAssert("Requested team out of range in TeamBalancer::OnRequestSpecificTeam" && 0);
 		return;
@@ -578,7 +582,8 @@ unsigned int TeamBalancer::GetMemberIndex(NetworkID memberId, RakNetGUID guid) c
 }
 unsigned int TeamBalancer::AddTeamMember(const TeamMember &tm)
 {
-	if (tm.currentTeam>teamLimits.Size())
+	// >= rather than >: teamLimits is indexed 0 .. Size()-1 and its allocation is exact.
+	if (tm.currentTeam>=teamLimits.Size())
 	{
 		RakAssert("TeamBalancer::AddTeamMember team index out of bounds" && 0);
 		return (unsigned int) -1;
@@ -587,7 +592,10 @@ unsigned int TeamBalancer::AddTeamMember(const TeamMember &tm)
 	RakAssert(tm.currentTeam!=UNASSIGNED_TEAM_ID);
 
 	teamMembers.Push(tm,_FILE_AND_LINE_);
-	if (teamMemberCounts.Size()<tm.currentTeam)
+	// Likewise <=: when Size() equals currentTeam the index is already one past the end, so the
+	// list has to be grown rather than indexed. DataStructures::List only range-checks
+	// operator[] under _DEBUG, so this read-modify-write would otherwise run off the array.
+	if (teamMemberCounts.Size()<=tm.currentTeam)
 		teamMemberCounts.Replace(1,0,tm.currentTeam,_FILE_AND_LINE_);
 	else
 		teamMemberCounts[tm.currentTeam]=teamMemberCounts[tm.currentTeam]+1;
