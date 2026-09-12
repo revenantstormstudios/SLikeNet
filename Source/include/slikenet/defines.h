@@ -106,6 +106,16 @@
 #define MAXIMUM_NUMBER_OF_INTERNAL_IDS 10
 #endif
 
+/// Maximum number of fragments a single split message may be reassembled from.
+/// splitPacketCount is a 32-bit value read straight off the wire, and it both sizes a pointer
+/// array and bounds the reassembled message, so it needs a ceiling. A fragment carries at most
+/// MAXIMUM_MTU_SIZE bytes, so this also caps the reassembled message at roughly
+/// MAX_SPLIT_PACKET_COUNT * MAXIMUM_MTU_SIZE. The default allows messages far larger than the
+/// 16 MB reference pushes FileListTransfer performs by default.
+#ifndef MAX_SPLIT_PACKET_COUNT
+#define MAX_SPLIT_PACKET_COUNT 100000
+#endif
+
 #ifndef RakAssert
 #if   defined(__native_client__)
 #define RakAssert(x)

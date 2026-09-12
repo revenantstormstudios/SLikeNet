@@ -300,6 +300,15 @@ bool SplitPacketSort::Add(InternalPacket *internalPacket)
 	RakAssert(m_packetId == internalPacket->splitPacketId);
 	RakAssert(m_data[internalPacket->splitPacketIndex] == nullptr);
 
+	// These have to be real runtime checks, not just the asserts above, which compile to nothing
+	// in a release build. splitPacketIndex comes off the wire and is only validated against the
+	// splitPacketCount carried by its own fragment, which a later fragment can set differently
+	// from the one that sized this array.
+	if (m_data == nullptr || internalPacket->splitPacketIndex >= m_allocationSize ||
+		m_packetId != internalPacket->splitPacketId) {
+		return false;
+	}
+
 	if (m_data[internalPacket->splitPacketIndex] == nullptr) {
 		m_data[internalPacket->splitPacketIndex] = internalPacket;
 		++m_addedPacketsCount;
@@ -2842,8 +2851,18 @@ InternalPacket* ReliabilityLayer::CreateInternalPacketFromBitStream(SLNet::BitSt
 	if (readSuccess==false ||
 		internalPacket->dataBitLength==0 ||
 		internalPacket->reliability>=NUMBER_OF_RELIABILITIES ||
-		internalPacket->orderingChannel>=32 || 
-		(hasSplitPacket && (internalPacket->splitPacketIndex >= internalPacket->splitPacketCount)))
+		internalPacket->orderingChannel>=32 ||
+		(hasSplitPacket && (internalPacket->splitPacketIndex >= internalPacket->splitPacketCount)) ||
+		// splitPacketCount sizes a pointer array and bounds the reassembled message, so an
+		// unbounded 32-bit value from the wire cannot be accepted. Note the cast in
+		// SplitPacketSort::Preallocate is to int, so counts above 0x7FFFFFFF were also
+		// allocating with a negative element count.
+		(hasSplitPacket && (internalPacket->splitPacketCount > MAX_SPLIT_PACKET_COUNT)) ||
+		// A conforming sender only emits byte-aligned interior fragments; a fragment that is
+		// not a whole number of bytes and is not the last one makes the reassembled offsets
+		// disagree with the allocation.
+		(hasSplitPacket && ((internalPacket->dataBitLength & 7) != 0) &&
+			(internalPacket->splitPacketIndex + 1 != internalPacket->splitPacketCount)))
 	{
 		// If this assert hits, encoding is garbage
 		RakAssert("Encoding is garbage" && 0);
@@ -3219,6 +3238,17 @@ void ReliabilityLayer::InsertIntoSplitPacketList( InternalPacket * internalPacke
 		ReleaseToInternalPacketPool(internalPacket);
 	}
 #else
+	// The channel's array was sized from the splitPacketCount of whichever fragment arrived
+	// first. Parse-time validation only compares splitPacketIndex against the count in the same
+	// fragment, so a later fragment can claim a larger count and an index that is in range for
+	// itself but out of range for this allocation. Require every fragment of a message to agree
+	// on the count.
+	if (static_cast<size_t>(internalPacket->splitPacketCount) != splitPacketChannelList[index]->splitPacketList.GetAllocSize()) {
+		FreeInternalPacketData(internalPacket, _FILE_AND_LINE_);
+		ReleaseToInternalPacketPool(internalPacket);
+		return;
+	}
+
 	// Insert the packet into the SplitPacketChannel
 	if (!splitPacketChannelList[index]->splitPacketList.Add(internalPacket)) {
 		FreeInternalPacketData(internalPacket, _FILE_AND_LINE_);
@@ -3282,20 +3312,55 @@ InternalPacket * ReliabilityLayer::BuildPacketFromSplitPacketList( SplitPacketCh
 
 	// Reconstruct
 	internalPacket = CreateInternalPacketCopy( splitPacketChannel->splitPacketList[0], 0, 0, time );
-	internalPacket->dataBitLength=0;
+
+	// Accumulate in 64 bits. dataBitLength is a 32-bit BitSize_t and every fragment contributes
+	// an attacker-chosen length, so summing in 32 bits can wrap and produce a tiny allocation
+	// that the copy loop below then overruns.
+	uint64_t totalBitLength = 0;
 	for (j=0; j < splitPacketChannel->splitPacketList.GetAllocSize(); j++)
-		internalPacket->dataBitLength+=splitPacketChannel->splitPacketList[j]->dataBitLength;
+		totalBitLength += splitPacketChannel->splitPacketList[j]->dataBitLength;
+
+	// Each fragment is copied at a byte-aligned destination, so the buffer has to be sized from
+	// the sum of the per-fragment byte counts rather than from the byte count of the summed bit
+	// length. Those differ whenever an interior fragment is not a whole number of bytes:
+	// ceil(a/8)+ceil(b/8) can exceed ceil((a+b)/8), which is a one byte heap overflow on the
+	// final memcpy. A conforming sender only ever produces byte-aligned interior fragments, but
+	// nothing on the receive path enforced that.
+	uint64_t totalByteLength = 0;
+	for (j=0; j < splitPacketChannel->splitPacketList.GetAllocSize(); j++)
+		totalByteLength += BITS_TO_BYTES(splitPacketChannel->splitPacketList[j]->dataBitLength);
+
+	if (totalBitLength > (uint64_t)MAX_SPLIT_PACKET_COUNT * BYTES_TO_BITS(MAXIMUM_MTU_SIZE) ||
+		totalByteLength > (uint64_t)MAX_SPLIT_PACKET_COUNT * MAXIMUM_MTU_SIZE)
+	{
+		// Cannot have been produced by a conforming sender; drop the whole message.
+		for (j=0; j < splitPacketChannel->splitPacketList.GetAllocSize(); j++)
+		{
+			FreeInternalPacketData(splitPacketChannel->splitPacketList[j], _FILE_AND_LINE_ );
+			ReleaseToInternalPacketPool(splitPacketChannel->splitPacketList[j]);
+		}
+		FreeInternalPacketData(internalPacket, _FILE_AND_LINE_ );
+		ReleaseToInternalPacketPool(internalPacket);
+		SLNet::OP_DELETE(splitPacketChannel, __FILE__, __LINE__);
+		return 0;
+	}
+
+	internalPacket->dataBitLength=(BitSize_t)totalBitLength;
 	// splitPacketPartLength=BITS_TO_BYTES(splitPacketChannel->firstPacket->dataBitLength);
 
-	internalPacket->data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( internalPacket->dataBitLength ), _FILE_AND_LINE_ );
+	internalPacket->data = (unsigned char*) rakMalloc_Ex( (size_t) totalByteLength, _FILE_AND_LINE_ );
 	internalPacket->allocationScheme=InternalPacket::NORMAL;
 
-    BitSize_t offset = 0;
+	// Track the destination in bytes. The previous code advanced a bit offset and rounded it up
+	// per fragment, which is what allowed the overflow described above.
+	size_t byteOffset = 0;
 	for (j=0; j < splitPacketChannel->splitPacketList.GetAllocSize(); j++)
 	{
 		splitPacket = splitPacketChannel->splitPacketList[j];
-		memcpy(internalPacket->data + BITS_TO_BYTES(offset), splitPacket->data, (size_t)BITS_TO_BYTES(splitPacket->dataBitLength));
-		offset += splitPacket->dataBitLength;
+		const size_t fragmentByteLength = (size_t)BITS_TO_BYTES(splitPacket->dataBitLength);
+		RakAssert(byteOffset + fragmentByteLength <= totalByteLength);
+		memcpy(internalPacket->data + byteOffset, splitPacket->data, fragmentByteLength);
+		byteOffset += fragmentByteLength;
 	}
 
 	for (j=0; j < splitPacketChannel->splitPacketList.GetAllocSize(); j++)

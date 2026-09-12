@@ -102,10 +102,12 @@ option(SLIKENET_ENABLE_ASAN        "Build with AddressSanitizer (for test/CI bui
 # CMAKE_CXX_FLAGS wholesale and would otherwise discard the flag for the library itself.
 if(SLIKENET_ENABLE_ASAN)
 	if(MSVC)
-		add_compile_options(/fsanitize=address)
+		# /Zi so ASan reports carry file and line information rather than raw addresses;
+		# without it MSVC emits C5072 for every translation unit and LNK4302 at link time.
+		add_compile_options(/fsanitize=address /Zi)
 		if(NOT (CMAKE_VERSION VERSION_LESS 3.13))
 			# ASan is incompatible with incremental linking.
-			add_link_options(/INCREMENTAL:NO)
+			add_link_options(/INCREMENTAL:NO /DEBUG)
 		endif()
 	else()
 		add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
