@@ -347,7 +347,11 @@ protected:
 	uint32_t nextReferenceIndex;
 
 	// For O(1) lookup
-	RM3World *worldsArray[255];
+	// Indexed by WorldId, which is a uint8_t, so there must be an entry for every possible
+	// value. This was [255], which left worldId 255 reading one pointer past the end - directly
+	// into the worldsList member below, whose leading listArray pointer is non-null and so
+	// passed the "is this world in use" test that guards most call sites.
+	RM3World *worldsArray[256];
 	// For fast traversal
 	DataStructures::List<RM3World *> worldsList;
 private:

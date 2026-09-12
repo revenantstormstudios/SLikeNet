@@ -92,7 +92,7 @@ ReplicaManager3::ReplicaManager3()
 	autoDestroyConnections=true;
 	currentlyDeallocatingReplica=0;
 
-	for (unsigned int i=0; i < 255; i++)
+	for (unsigned int i=0; i < 256; i++)
 		worldsArray[i]=0;
 
 	AddWorld(0);
@@ -671,7 +671,10 @@ PluginReceiveResult ReplicaManager3::OnReceive(Packet *packet)
 	unsigned char packetIdentifier, packetDataOffset;
 	if ( ( unsigned char ) packet->data[ 0 ] == ID_TIMESTAMP )
 	{
-		if ( packet->length > sizeof( unsigned char ) + sizeof(SLNet::Time ) )
+		// The worldId read below is at offset sizeof(unsigned char)*2 + sizeof(Time), so the
+		// message must be at least one byte longer than that. The previous bound was one byte
+		// short and allowed that read to run past the end of the packet.
+		if ( packet->length > sizeof( unsigned char ) * 2 + sizeof(SLNet::Time ) )
 		{
 			packetIdentifier = ( unsigned char ) packet->data[ sizeof( unsigned char ) + sizeof(SLNet::Time ) ];
 			// Required for proper endian swapping
@@ -1003,12 +1006,14 @@ void ReplicaManager3::OnClosedConnection(const SystemAddress &systemAddress, Rak
 	(void) systemAddress;
 	if (autoDestroyConnections)
 	{
-		for (WorldId index = 0; index < 255; index++)
+		// Counts in unsigned int, not WorldId: WorldId is a uint8_t, so "index < 256" on a
+		// WorldId would never terminate.
+		for (unsigned int index = 0; index < 256; index++)
 		{
 			// Only concerned with active Worlds
 			if (worldsArray[index] != nullptr)
 			{
-				Connection_RM3* connection = PopConnection(rakNetGUID, index);
+				Connection_RM3* connection = PopConnection(rakNetGUID, (WorldId)index);
 				if (connection)
 					DeallocConnection(connection);
 
@@ -1088,7 +1093,9 @@ PluginReceiveResult ReplicaManager3::OnConstruction(Packet *packet, unsigned cha
 
 	SLNet::BitStream bsIn(packetData,packetDataLength,false);
 	bsIn.IgnoreBytes(packetDataOffset);
-	uint16_t constructionObjectListSize, destructionObjectListSize, index, index2;
+	// Initialized: these drive loop counts and are read from the packet, and BitStream::Read
+	// leaves its destination untouched when the message is too short.
+	uint16_t constructionObjectListSize = 0, destructionObjectListSize = 0, index, index2;
 	BitSize_t streamEnd, writeAllocationIDEnd;
 	Replica3 *replica;
 	NetworkID networkId;
@@ -1239,8 +1246,10 @@ PluginReceiveResult ReplicaManager3::OnConstruction(Packet *packet, unsigned cha
 	RakAssert(b);
 	for (index=0; index < destructionObjectListSize; index++)
 	{
-		bsIn.Read(networkId);
-		bsIn.Read(streamEnd);
+		// Stop on a truncated message rather than carrying an unchanged networkId and streamEnd
+		// into the lookup and the SetReadOffset below.
+		if (bsIn.Read(networkId)==false || bsIn.Read(streamEnd)==false)
+			break;
 		replica = world->networkIDManager->GET_OBJECT_FROM_ID<Replica3*>(networkId);
 		if (replica==0)
 		{
