@@ -266,7 +266,10 @@ bool BitStream::Read( char* outByteArray, const unsigned int numberOfBytes )
 	// Optimization:
 	if ((readOffset & 7) == 0)
 	{
-		if (GetNumberOfUnreadBits() < (numberOfBytes << 3))
+		// Compare in bytes rather than bits. numberOfBytes is a 32-bit count that can come from
+		// the wire, and "numberOfBytes << 3" wraps for any value >= 0x20000000, which made this
+		// guard pass while the memcpy below still copied the full untruncated length.
+		if ( static_cast<uint64_t>(numberOfBytes) > static_cast<uint64_t>(GetNumberOfUnreadBits() >> 3) )
 			return false;
 
 		// Write the data
@@ -372,7 +375,9 @@ bool BitStream::ReadAlignedBytes( unsigned char* inOutByteArray, const unsigned 
 	// Byte align
 	AlignReadToByteBoundary();
 
-	if (GetNumberOfUnreadBits() < (numberOfBytesToRead << 3))
+	// As in Read(char*, unsigned int): compare in bytes, because shifting a 32-bit byte count
+	// left by 3 wraps for any value >= 0x20000000 and lets the guard pass.
+	if ( static_cast<uint64_t>(numberOfBytesToRead) > static_cast<uint64_t>(GetNumberOfUnreadBits() >> 3) )
 		return false;
 
 	// Write the data

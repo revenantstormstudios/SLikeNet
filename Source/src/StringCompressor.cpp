@@ -404,16 +404,24 @@ void StringCompressor::EncodeString( const char *input, int maxCharsToWrite, SLN
 bool StringCompressor::DecodeString( char *output, int maxCharsToWrite, SLNet::BitStream *input, uint8_t languageId )
 {
 	HuffmanEncodingTree *huffmanEncodingTree;
-	if (huffmanEncodingTrees.Has(languageId)==false)
-		return false;
+
 	if (maxCharsToWrite<=0)
+		return false;
+
+	// Terminate before any early return. languageId comes off the wire, and only tree 0 is
+	// registered by default, so an unknown id used to return with output untouched. The
+	// RakString and std::string wrappers assign the buffer to their output regardless of the
+	// return value, and their buffer is 64 KB of uninitialized alloca stack - so an unknown
+	// language id turned into a strlen() over live stack contents that was then handed back to
+	// the caller as a deserialized string.
+	output[ 0 ] = 0;
+
+	if (huffmanEncodingTrees.Has(languageId)==false)
 		return false;
 	huffmanEncodingTree=huffmanEncodingTrees.Get(languageId);
 
 	uint32_t stringBitLength;
 	int bytesInStream;
-
-	output[ 0 ] = 0;
 
 	if ( input->ReadCompressed( stringBitLength ) == false )
 		return false;
@@ -465,14 +473,21 @@ bool StringCompressor::DecodeString( std::string *output, int maxCharsToWrite, S
 	{
 		destinationBlock = (char*) alloca(maxCharsToWrite);
 		out=DecodeString(destinationBlock, maxCharsToWrite, input, languageId);
-		*output=destinationBlock;
+		// Only publish the buffer if the decode succeeded; on failure it holds nothing useful.
+		if (out)
+			*output=destinationBlock;
+		else
+			output->clear();
 	}
 	else
 #endif
 	{
 		destinationBlock = (char*) rakMalloc_Ex( maxCharsToWrite, _FILE_AND_LINE_ );
 		out=DecodeString(destinationBlock, maxCharsToWrite, input, languageId);
-		*output=destinationBlock;
+		if (out)
+			*output=destinationBlock;
+		else
+			output->clear();
 		rakFree_Ex(destinationBlock, _FILE_AND_LINE_ );
 	}
 
@@ -499,14 +514,21 @@ bool StringCompressor::DecodeString( RakString *output, int maxCharsToWrite, SLN
 	{
 		destinationBlock = (char*) alloca(maxCharsToWrite);
 		out=DecodeString(destinationBlock, maxCharsToWrite, input, languageId);
-		*output=destinationBlock;
+		// Only publish the buffer if the decode succeeded; on failure it holds nothing useful.
+		if (out)
+			*output=destinationBlock;
+		else
+			output->Clear();
 	}
 	else
 #endif
 	{
 		destinationBlock = (char*) rakMalloc_Ex( maxCharsToWrite, _FILE_AND_LINE_ );
 		out=DecodeString(destinationBlock, maxCharsToWrite, input, languageId);
-		*output=destinationBlock;
+		if (out)
+			*output=destinationBlock;
+		else
+			output->Clear();
 		rakFree_Ex(destinationBlock, _FILE_AND_LINE_ );
 	}
 
