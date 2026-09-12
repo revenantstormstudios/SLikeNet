@@ -83,6 +83,26 @@ struct PRO
 /// </OL>
 /// <BR>
 /// At this point, all new connections will automatically download, get construction messages, get destruction messages, and update serialization automatically.
+/// \brief Which system is permitted to create and destroy replicas.
+/// \details See ReplicaManager3::SetAuthorityMode().
+/// \ingroup REPLICA_MANAGER_GROUP3
+enum RM3AuthorityMode
+{
+	/// Default. No enforcement, preserving the historical behaviour in which any connected peer
+	/// may construct a replica attributed to any GUID and destroy any replica it can name.
+	RM3AM_NONE,
+
+	/// This system creates and destroys every replica, so construction and destruction arriving
+	/// from a remote system is rejected. Use this on an authoritative server.
+	RM3AM_LOCAL_AUTHORITY,
+
+	/// One remote system is authoritative. Construction and destruction is accepted only from
+	/// that system, and the creatingSystemGUID it sends is trusted, since an authority may
+	/// legitimately relay objects it attributes to other systems. Use this on a client, passing
+	/// the server's GUID.
+	RM3AM_REMOTE_AUTHORITY
+};
+
 /// \ingroup REPLICA_MANAGER_GROUP3
 class RAK_DLL_EXPORT ReplicaManager3 : public PluginInterface2
 {
@@ -107,6 +127,35 @@ public:
 	/// It is used if autoDestroy is true via SetAutoManageConnections() (true by default). Otherwise, the function is not called and you would then be responsible for deleting your own connection objects.
 	/// \param[in] connection The pointer instance to delete
 	virtual void DeallocConnection(Connection_RM3 *connection) const=0;
+
+	/// \brief Declare which system is permitted to create and destroy replicas.
+	/// \details ReplicaManager3 takes creatingSystemGUID straight out of an incoming construction
+	/// message and then uses it as an ownership token - QueryConstruction_ClientConstruction(),
+	/// QuerySerialization_ClientSerializable(), QuerySerialization_PeerToPeer() and
+	/// GetReplicasCreatedByGuid() all branch on it - and it destroys whatever NetworkID a
+	/// destruction message names. Neither is checked against the sender, so by default any
+	/// connected peer can construct an object attributed to another system, or destroy any
+	/// replica it can name.
+	///
+	/// The library cannot infer whether that is legitimate, because a relaying server correctly
+	/// forwards objects it attributes to other systems. Declaring the topology here makes the
+	/// check expressible.
+	///
+	/// In a client/server game with an authoritative server, call
+	/// SetAuthorityMode(RM3AM_LOCAL_AUTHORITY) on the server and
+	/// SetAuthorityMode(RM3AM_REMOTE_AUTHORITY, serverGuid) on each client.
+	///
+	/// \note Only construction and destruction are gated. Serialization is left alone, because
+	/// QuerySerialization_ClientSerializable() is a supported pattern in which clients do
+	/// legitimately serialize their own objects to the server.
+	/// \param[in] mode Which system is authoritative. Defaults to RM3AM_NONE, which preserves the
+	/// historical unchecked behaviour.
+	/// \param[in] authorityGuid The authoritative system, required for RM3AM_REMOTE_AUTHORITY and
+	/// ignored otherwise.
+	void SetAuthorityMode(RM3AuthorityMode mode, RakNetGUID authorityGuid = UNASSIGNED_RAKNET_GUID);
+
+	/// \brief Returns the mode set by SetAuthorityMode(). Defaults to RM3AM_NONE.
+	RM3AuthorityMode GetAuthorityMode(void) const;
 
 	/// \brief Enable or disable automatically assigning connections to new instances of Connection_RM3
 	/// \details ReplicaManager3 can automatically create and/or destroy Connection_RM3 as systems connect or disconnect from RakPeerInterface.<BR>
@@ -352,6 +401,10 @@ protected:
 	// into the worldsList member below, whose leading listArray pointer is non-null and so
 	// passed the "is this world in use" test that guards most call sites.
 	RM3World *worldsArray[256];
+
+	// See SetAuthorityMode().
+	RM3AuthorityMode authorityMode;
+	RakNetGUID authorityGuid;
 	// For fast traversal
 	DataStructures::List<RM3World *> worldsList;
 private:

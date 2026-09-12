@@ -92,6 +92,9 @@ ReplicaManager3::ReplicaManager3()
 	autoDestroyConnections=true;
 	currentlyDeallocatingReplica=0;
 
+	authorityMode=RM3AM_NONE;
+	authorityGuid=UNASSIGNED_RAKNET_GUID;
+
 	for (unsigned int i=0; i < 256; i++)
 		worldsArray[i]=0;
 
@@ -608,6 +611,22 @@ PRO ReplicaManager3::GetDefaultSendParameters(void) const
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+void ReplicaManager3::SetAuthorityMode(RM3AuthorityMode mode, RakNetGUID guid)
+{
+	RakAssert(mode!=RM3AM_REMOTE_AUTHORITY || guid!=UNASSIGNED_RAKNET_GUID);
+	authorityMode=mode;
+	authorityGuid=guid;
+}
+
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+RM3AuthorityMode ReplicaManager3::GetAuthorityMode(void) const
+{
+	return authorityMode;
+}
+
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 void ReplicaManager3::AddWorld(WorldId worldId)
 {
 	RakAssert(worldsArray[worldId]==0 && "World already in use");
@@ -1076,6 +1095,15 @@ void ReplicaManager3::OnDetach(void)
 
 PluginReceiveResult ReplicaManager3::OnConstruction(Packet *packet, unsigned char *packetData, int packetDataLength, RakNetGUID senderGuid, unsigned char packetDataOffset, WorldId worldId)
 {
+	// This message carries both the construction and the destruction list, so this single gate
+	// covers creatingSystemGUID forgery and destruction of an arbitrary NetworkID. See
+	// SetAuthorityMode(); RM3AM_NONE preserves the historical unchecked behaviour.
+	if (authorityMode==RM3AM_LOCAL_AUTHORITY ||
+		(authorityMode==RM3AM_REMOTE_AUTHORITY && senderGuid!=authorityGuid))
+	{
+		return RR_STOP_PROCESSING_AND_DEALLOCATE;
+	}
+
 	RM3World *world = worldsArray[worldId];
 
 	Connection_RM3 *connection = GetConnectionByGUID(senderGuid, worldId);
