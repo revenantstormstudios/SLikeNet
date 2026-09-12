@@ -97,9 +97,10 @@ option(SLIKENET_ENABLE_TESTS       "Generate the unit test project if true."    
 option(SLIKENET_ENABLE_ASAN        "Build with AddressSanitizer (for test/CI builds)."  FALSE)
 
 # AddressSanitizer turns the out-of-bounds accesses the tests probe for into hard failures
-# instead of silent corruption. This is applied with add_compile_options rather than by
-# appending to CMAKE_CXX_FLAGS, because Lib/LibStatic/CMakeLists.txt overwrites
-# CMAKE_CXX_FLAGS wholesale and would otherwise discard the flag for the library itself.
+# instead of silent corruption. Applied with add_compile_options rather than by appending to
+# CMAKE_CXX_FLAGS so that it reaches every target regardless of what the per-target CMakeLists
+# do with that variable. (Lib/LibStatic and Lib/DLL used to overwrite it wholesale, which would
+# have dropped the flag for the library itself; they now append, but this stays independent.)
 if(SLIKENET_ENABLE_ASAN)
 	if(MSVC)
 		# /Zi so ASan reports carry file and line information rather than raw addresses;
