@@ -237,8 +237,13 @@ errno_t strncpy_s(char *strDest, size_t numberOfElements, const char *strSource,
 		}
 	}
 	else {
-		// otherwise we use count, but have to check that the destination buffer is of sufficient size
-		if ((count > numberOfElements) || ((count == numberOfElements) && (strSource[count] != '\0'))) {
+		// otherwise we use count, but have to check that the destination buffer is of sufficient size.
+		// count == numberOfElements must be rejected as well: strDest[numChars] below writes the
+		// terminator at numberOfElements, one past the caller's buffer. MSVC's strncpy_s returns
+		// ERANGE for this case for exactly that reason. The previous condition admitted it
+		// whenever strSource happened to be short enough, and reading strSource[count] to decide
+		// was itself a read past the end of a shorter source string.
+		if (count >= numberOfElements) {
 			strDest[0] = '\0'; // ensure trailing \0 is written
 			return 34; // error: ERANGE
 		}

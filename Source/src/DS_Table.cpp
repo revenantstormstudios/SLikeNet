@@ -998,7 +998,8 @@ void Table::PrintRow(char *out, int outLength, char columnDelineator, bool print
 
 	if (inputRow->cells.Size()!=columns.Size())
 	{
-		strncpy_s(out, outLength, "Cell width does not match column width.\n", outLength);
+		// outLength-1: the count must leave room for the terminator (see StringTable.cpp).
+		strncpy_s(out, outLength, "Cell width does not match column width.\n", outLength-1);
 		out[outLength-1]=0;
 		return;
 	}
@@ -1065,7 +1066,9 @@ void Table::PrintRow(char *out, int outLength, char columnDelineator, bool print
 		len=(int)strlen(out);
 		if (outLength==len+1)
 			break;
-		strncpy_s(out+len, outLength-len, buff, outLength-len);
+		// outLength-len-1: leave room for the terminator. The check above guarantees
+		// outLength-len is at least 2 here, so this cannot underflow.
+		strncpy_s(out+len, outLength-len, buff, outLength-len-1);
 		out[outLength-1]=0;
 	}
 }
