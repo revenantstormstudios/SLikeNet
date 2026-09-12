@@ -70,7 +70,8 @@ bool TableSerializer::DeserializeTable(unsigned char *serializedTable, unsigned 
 bool TableSerializer::DeserializeTable(SLNet::BitStream *in, DataStructures::Table *out)
 {
 	unsigned rowSize;
-	DeserializeColumns(in,out);
+	if (DeserializeColumns(in,out)==false)
+		return false;
 	if (in->Read(rowSize)==false || rowSize>100000)
 	{
 		RakAssert(0);
@@ -147,12 +148,28 @@ bool TableSerializer::DeserializeRow(SLNet::BitStream *in, DataStructures::Table
 	if (in->Read(key)==false)
 		return false;
 	row=out->AddRow(key);
+	// AddRow returns 0 when the key is already present, which a remote peer controls.
+	if (row==0)
+		return false;
 	unsigned int cnt;
-	in->Read(numEntries);
+	// A row cannot hold more cells than the table has columns.
+	if (in->Read(numEntries)==false || numEntries>columns.Size())
+	{
+		out->RemoveRow(key);
+		return false;
+	}
 	for (cnt=0; cnt<numEntries; cnt++)
 	{
 		unsigned cellIndex;
-		in->Read(cellIndex);
+		// cellIndex is an unvalidated 32-bit value straight off the wire and indexes both
+		// row->cells and columns. DataStructures::List only range-checks operator[] under
+		// _DEBUG, so without this an attacker picks an arbitrary Cell* which DeserializeCell
+		// then frees and writes through.
+		if (in->Read(cellIndex)==false || cellIndex>=row->cells.Size() || cellIndex>=columns.Size())
+		{
+			out->RemoveRow(key);
+			return false;
+		}
 		if (DeserializeCell(in, row->cells[cellIndex], columns[cellIndex].columnType)==false)
 		{
 			out->RemoveRow(key);
