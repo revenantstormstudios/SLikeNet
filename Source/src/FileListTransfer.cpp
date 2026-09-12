@@ -745,14 +745,25 @@ void FileListTransfer::OnReferencePush(Packet *packet, bool isTheFullFile)
 
 	inBitStream.ReadCompressed(onFileStruct.fileIndex);
 	inBitStream.ReadCompressed(onFileStruct.byteLengthOfThisFile);
-	unsigned int offset;
-	unsigned int chunkLength;
-	inBitStream.ReadCompressed(offset);
-	inBitStream.ReadCompressed(chunkLength);
+	unsigned int offset = 0;
+	unsigned int chunkLength = 0;
+	if (inBitStream.ReadCompressed(offset)==false || inBitStream.ReadCompressed(chunkLength)==false)
+		return;
 
 	bool lastChunk=false;
 	inBitStream.Read(lastChunk);
 	bool finished = lastChunk && isTheFullFile;
+
+	// offset and chunkLength are both remote input, and together they address a buffer that is
+	// sized from byteLengthOfThisFile, so the chunk has to be shown to fit before anything is
+	// allocated or copied. The subtraction form avoids overflowing offset+chunkLength.
+	// SLNET_MAX_RETRIEVABLE_FILESIZE below only caps the allocation; it never bounds offset.
+	if (isTheFullFile &&
+		(chunkLength > onFileStruct.byteLengthOfThisFile ||
+		 offset > onFileStruct.byteLengthOfThisFile - chunkLength))
+	{
+		return;
+	}
 
 	if (isTheFullFile==false)
 		fileListReceiver->partLength=partLength;
@@ -780,6 +791,12 @@ void FileListTransfer::OnReferencePush(Packet *packet, bool isTheFullFile)
 		amountToRead=unreadBytes;
 
 	inBitStream.AlignReadToByteBoundary();
+
+	// The chunk must also actually be present in the datagram; a peer can claim a chunkLength
+	// far larger than what it sent, which would make the copy below read past the end of the
+	// receive buffer. Recomputed after the align, since aligning can consume up to 7 bits.
+	if (amountToRead > BITS_TO_BYTES(inBitStream.GetNumberOfUnreadBits()))
+		return;
 
 	FileListTransferCBInterface::FileProgressStruct fps;
 
