@@ -1268,17 +1268,24 @@ bool RakString::Deserialize(BitStream *bs)
 }
 bool RakString::Deserialize(char *str, BitStream *bs)
 {
+	// This overload has no way to know how large str is; see the warning on its declaration.
+	// What can be fixed here is the terminator: l was uninitialized, so a failed Read(l) left
+	// it holding stack garbage, and str[l]=0 ran unconditionally - writing a NUL at an offset
+	// the sender chose, up to 65535 bytes away, even when nothing had been copied.
 	bool b;
-	unsigned short l;
+	unsigned short l=0;
 	b=bs->Read(l);
 	if (b && l>0)
 		b=bs->ReadAlignedBytes((unsigned char*) str, l);
 
 	if (b==false)
+	{
 		str[0]=0;
-	
+		return false;
+	}
+
 	str[l]=0;
-	return b;
+	return true;
 }
 bool RakString::DeserializeCompressed(BitStream *bs, bool readLanguageId)
 {
