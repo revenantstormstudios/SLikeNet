@@ -17,7 +17,9 @@ on:
 jobs:
   windows:
     name: Windows (${{ matrix.name }})
-    runs-on: windows-latest
+    # Pinned rather than windows-latest: the Visual Studio 2022 generator below, and the v143
+    # .vcxproj files, need VS 2022, which newer windows-latest images no longer install.
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
