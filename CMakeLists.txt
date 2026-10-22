@@ -9,7 +9,7 @@
 # license found in the license.txt file in the root directory of this source tree.
 #
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.10)
 
 # CMake policy settings
 if( POLICY CMP0037 )
@@ -43,14 +43,34 @@ IF (WIN32 AND NOT UNIX)
 ENDIF(WIN32 AND NOT UNIX)
 
 # add package dependencies
-find_package(OpenSSL 1.0.0 REQUIRED)
-set(SLIKENET_LIBRARY_LIBS OpenSSL::Crypto OpenSSL::SSL)
+# The CryptoManager / FileEncrypter classes under Source/src/crypto are the only part of the
+# library that requires OpenSSL; nothing else in Source/ includes their headers. Gate them
+# behind an option so the library can be built and tested without OpenSSL available. This
+# defaults to TRUE, so the shipped configuration is unchanged.
+option(SLIKENET_ENABLE_CRYPTO      "Build the OpenSSL-backed CryptoManager/FileEncrypter classes." TRUE)
+
+if(SLIKENET_ENABLE_CRYPTO)
+	find_package(OpenSSL 1.0.0 REQUIRED)
+	set(SLIKENET_LIBRARY_LIBS OpenSSL::Crypto OpenSSL::SSL)
+else()
+	set(SLIKENET_LIBRARY_LIBS "")
+endif()
 
 IF (WIN32 AND NOT UNIX)
 	set(SLIKENET_LIBRARY_LIBS ${SLIKENET_LIBRARY_LIBS} ws2_32.lib)
 ELSE(WIN32 AND NOT UNIX)
 	set(SLIKENET_LIBRARY_LIBS ${SLIKENET_LIBRARY_LIBS} pthread)
 ENDIF(WIN32 AND NOT UNIX)
+
+# Source/src/SecureHandshake.cpp #includes the libcat .cpp files directly, so with
+# LIBCAT_SECURITY enabled the "#pragma comment(lib, big_x64.lib)" in cat/src/math/BigRTL.cpp
+# ends up inside SecureHandshake.obj. Every executable that pulls that object out of the
+# library therefore needs the prebuilt assembly library on its link path. It ships in the tree,
+# but no directory was ever added for it, so such a link failed with LNK1104. The pragma is
+# guarded on MSVC plus 64-bit, so match that here.
+IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+	link_directories(${SLikeNet_SOURCE_DIR}/DependentExtensions/cat/lib/cat)
+ENDIF()
 
 # enable C++11 language support for GCC
 include(CheckCXXCompilerFlag)
@@ -73,6 +93,30 @@ ELSE (WIN32 AND NOT UNIX)
 ENDIF(WIN32 AND NOT UNIX)
 option(SLIKENET_ENABLE_DLL         "Generate the DLL / shared object project if true." TRUE)
 option(SLIKENET_ENABLE_STATIC      "Generate the static library project if true."      TRUE)
+option(SLIKENET_ENABLE_TESTS       "Generate the unit test project if true."           TRUE)
+option(SLIKENET_ENABLE_ASAN        "Build with AddressSanitizer (for test/CI builds)."  FALSE)
+
+# AddressSanitizer turns the out-of-bounds accesses the tests probe for into hard failures
+# instead of silent corruption. Applied with add_compile_options rather than by appending to
+# CMAKE_CXX_FLAGS so that it reaches every target regardless of what the per-target CMakeLists
+# do with that variable. (Lib/LibStatic and Lib/DLL used to overwrite it wholesale, which would
+# have dropped the flag for the library itself; they now append, but this stays independent.)
+if(SLIKENET_ENABLE_ASAN)
+	if(MSVC)
+		# /Zi so ASan reports carry file and line information rather than raw addresses;
+		# without it MSVC emits C5072 for every translation unit and LNK4302 at link time.
+		add_compile_options(/fsanitize=address /Zi)
+		if(NOT (CMAKE_VERSION VERSION_LESS 3.13))
+			# ASan is incompatible with incremental linking.
+			add_link_options(/INCREMENTAL:NO /DEBUG)
+		endif()
+	else()
+		add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+		if(NOT (CMAKE_VERSION VERSION_LESS 3.13))
+			add_link_options(-fsanitize=address)
+		endif()
+	endif()
+endif()
 
 set(SLIKENET_HEADER_FILES ${SLikeNet_SOURCE_DIR}/Source)
 
@@ -86,4 +130,12 @@ set(SLIKENET_COMMON_LIBS SLikeNetLibStatic)
 
 if(SLIKENET_ENABLE_SAMPLES)
 	add_subdirectory(Samples)
+endif()
+
+# The tests link against the static library, so they cannot be built without it.
+if(SLIKENET_ENABLE_TESTS AND NOT SLIKENET_ENABLE_STATIC)
+	message(WARNING "SLIKENET_ENABLE_TESTS requires SLIKENET_ENABLE_STATIC; tests will not be generated.")
+elseif(SLIKENET_ENABLE_TESTS)
+	enable_testing()
+	add_subdirectory(Tests)
 endif()

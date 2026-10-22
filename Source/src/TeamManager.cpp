@@ -1819,7 +1819,7 @@ TeamMemberLimit TM_World::GetBalancedTeamLimit(void) const
 
 TeamManager::TeamManager()
 {
-	for (unsigned int i=0; i < 255; i++)
+	for (unsigned int i=0; i < 256; i++)
 		worldsArray[i]=0;
 	autoAddParticipants=true;
 	topology=TM_PEER_TO_PEER;
@@ -2035,13 +2035,20 @@ void TeamManager::ProcessTeamAssigned(SLNet::BitStream *bsIn)
 
 void TeamManager::DecodeTeamAssigned(Packet *packet, TM_World **world, TM_TeamMember **teamMember)
 {
-	WorldId worldId;
+	// Initialized, and the reads are checked: BitStream::Read leaves its destination untouched
+	// on a short message, so a truncated packet previously selected a world using whatever this
+	// stack slot happened to hold.
+	WorldId worldId = 0;
 	NetworkID teamMemberId;
 
 	SLNet::BitStream bsIn(packet->data, packet->length, false);
 	bsIn.IgnoreBytes(sizeof(MessageID));
-	bsIn.Read(worldId);
-	bsIn.Read(teamMemberId);
+	if (bsIn.Read(worldId)==false || bsIn.Read(teamMemberId)==false)
+	{
+		*world = 0;
+		*teamMember = 0;
+		return;
+	}
 	*world = GetWorldWithId(worldId);
 	if (*world)
 	{
@@ -2057,13 +2064,19 @@ void TeamManager::DecodeTeamAssigned(Packet *packet, TM_World **world, TM_TeamMe
 
 void TeamManager::DecodeTeamCancelled(Packet *packet, TM_World **world, TM_TeamMember **teamMember, TM_Team **teamCancelled)
 {
-	WorldId worldId;
+	// Initialized and checked, as in DecodeTeamAssigned above.
+	WorldId worldId = 0;
 	NetworkID teamMemberId;
 
 	SLNet::BitStream bsIn(packet->data, packet->length, false);
 	bsIn.IgnoreBytes(sizeof(MessageID));
-	bsIn.Read(worldId);
-	bsIn.Read(teamMemberId);
+	if (bsIn.Read(worldId)==false || bsIn.Read(teamMemberId)==false)
+	{
+		*world = 0;
+		*teamMember = 0;
+		*teamCancelled = 0;
+		return;
+	}
 	bool sp=false;
 	*world = GetWorldWithId(worldId);
 	if (*world)

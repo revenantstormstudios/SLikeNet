@@ -140,10 +140,23 @@ void ConsoleServer::Update(void)
 	while (p)
 	{
 		bool commandParsed=false;
+
+		// p->length is remote input and is not bounded by the transport: RakNetTransport2 forwards
+		// a message of any length, so it must be clamped before it reaches a fixed-size buffer.
+		// RakNetTransport2 also allocates exactly p->length bytes without a terminator, so p->data
+		// cannot be treated as a C string - terminate our own copy instead of walking off the end
+		// of the allocation.
+		const unsigned int copyLength = (p->length < REMOTE_MAX_TEXT_INPUT) ? p->length : (REMOTE_MAX_TEXT_INPUT - 1);
 		char copy[REMOTE_MAX_TEXT_INPUT];
-		memcpy(copy, p->data, p->length);
-		copy[p->length]=0;
-		SLNet::CommandParserInterface::ParseConsoleString((char*)p->data, COMMAND_DELINATOR, COMMAND_DELINATOR_TOGGLE, &numParameters, parameterList, 20); // Up to 20 parameters
+		memcpy(copy, p->data, copyLength);
+		copy[copyLength]=0;
+
+		// ParseConsoleString writes NUL delimiters into the string it is given and parameterList
+		// points into it, so parse a scratch buffer and keep 'copy' intact for the originalString
+		// argument of OnCommand() below.
+		char parseBuffer[REMOTE_MAX_TEXT_INPUT];
+		memcpy(parseBuffer, copy, copyLength + 1);
+		SLNet::CommandParserInterface::ParseConsoleString(parseBuffer, COMMAND_DELINATOR, COMMAND_DELINATOR_TOGGLE, &numParameters, parameterList, 20); // Up to 20 parameters
 		if (numParameters==0)
 		{
 			transport->DeallocatePacket(p);

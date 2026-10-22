@@ -78,7 +78,11 @@ void CommandParserInterface::ParseConsoleString(char *str, const char delineator
 			parameterList[parameterListIndex]=str+strIndex;
 			parameterListIndex++;
 			RakAssert(parameterListIndex < parameterListLength);
-			if (parameterListIndex >= parameterListLength)
+			// The NULL terminator written after the loop occupies a slot too, so stop one entry
+			// early. With ">=" a caller passing an array of exactly parameterListLength - which
+			// is what ConsoleServer::Update does - had parameterList[parameterListLength]
+			// written one element past the end whenever the input carried that many tokens.
+			if (parameterListIndex+1 >= parameterListLength)
 				break;
 
 			strIndex++;

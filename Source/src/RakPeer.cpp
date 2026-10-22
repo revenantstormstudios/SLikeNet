@@ -3449,9 +3449,15 @@ void RakPeer::ParseConnectionRequestPacket( RakPeer::RemoteSystemStruct *remoteS
 	bs.IgnoreBytes(sizeof(MessageID));
 	RakNetGUID guid;
 	bs.Read(guid);
-	SLNet::Time incomingTimestamp;
-	bs.Read(incomingTimestamp);
-	unsigned char doSecurity;
+	// incomingTimestamp is echoed back to the sender inside ID_CONNECTION_REQUEST_ACCEPTED, and
+	// BitStream::Read leaves its destination untouched when the stream is too short. Unlike
+	// ID_NEW_INCOMING_CONNECTION and ID_CONNECTION_REQUEST_ACCEPTED, this message had no minimum
+	// length check, so a 1-byte ID_CONNECTION_REQUEST from an unauthenticated peer returned this
+	// slot's stale stack contents. Initialize it and stop if the read fails.
+	SLNet::Time incomingTimestamp = 0;
+	if (bs.Read(incomingTimestamp)==false)
+		return;
+	unsigned char doSecurity = 0;
 	bs.Read(doSecurity);
 
 #if LIBCAT_SECURITY==1
@@ -5462,9 +5468,33 @@ void ProcessNetworkPacket( SystemAddress systemAddress, const char *data, const 
 		// HandleSocketReceiveFromConnectedPlayer is only safe to be called from the same thread as Update, which is this thread
 		if ( isOfflineMessage==false)
 		{
-			remoteSystem->reliabilityLayer.HandleSocketReceiveFromConnectedPlayer(
+			bool isMaliciousDatagram = false;
+			const bool datagramAccepted = remoteSystem->reliabilityLayer.HandleSocketReceiveFromConnectedPlayer(
 				data, length, systemAddress, rakPeer->pluginListNTS, remoteSystem->MTUSize,
-				rakNetSocket, &rnr, timeRead, updateBitStream);
+				rakNetSocket, &rnr, timeRead, updateBitStream, &isMaliciousDatagram);
+
+			if (datagramAccepted==false && isMaliciousDatagram)
+			{
+				// The datagram could not have come from a conforming peer. Apply the same policy
+				// RunUpdateCycle() already uses for an unverified sender that transmits nonsense:
+				// drop this connection and ban the address for its timeout period, so a hostile
+				// peer cannot keep feeding the parser while every other peer is still served.
+				// Note this is deliberately not reached for a datagram that merely failed
+				// authenticated decryption, since that also occurs for duplicated or heavily
+				// reordered datagrams from a legitimate peer.
+				//
+				// Read everything needed off remoteSystem first: CloseConnectionInternal2() with
+				// performImmediate set may recycle the RemoteSystemStruct.
+				const SLNet::TimeMS banDuration = remoteSystem->reliabilityLayer.GetTimeoutTime();
+				char systemAddressString[64];
+				systemAddress.ToString(false, systemAddressString, static_cast<size_t>(64));
+
+				rakPeer->CloseConnectionInternal2(systemAddress, false, true, 0, LOW_PRIORITY, *(remoteSystem->rakNetSocket));
+#ifdef _DO_PRINTF
+				RAKNET_DEBUG_PRINTF("Temporarily banning %s for sending a malformed datagram\n", systemAddressString);
+#endif
+				rakPeer->AddToBanList(systemAddressString, banDuration);
+			}
 		}
 	}
 	else

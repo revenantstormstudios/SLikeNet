@@ -276,6 +276,10 @@ public:
 	bool Deserialize(BitStream *bs);
 
 	/// Static version of the Deserialize() function
+	/// \warning UNSAFE: this overload is given no capacity for \a str, so it will write up to
+	/// 65535 bytes chosen by the remote sender into whatever buffer is passed. Prefer
+	/// Deserialize(BitStream*), which sizes its own storage. A capacity-taking replacement is
+	/// pending; do not add new callers.
 	static bool Deserialize(char *str, BitStream *bs);
 
 	/// Deserialize compressed string, written by SerializeCompressed
@@ -286,6 +290,9 @@ public:
 	bool DeserializeCompressed(BitStream *bs, bool readLanguageId=false);
 
 	/// Static version of the DeserializeCompressed() function
+	/// \warning UNSAFE: as with Deserialize(char*,BitStream*) this overload is given no capacity
+	/// for \a str and passes 0xFFFF to the decoder as the buffer size. Prefer
+	/// DeserializeCompressed(BitStream*,bool). Do not add new callers.
 	static bool DeserializeCompressed(char *str, BitStream *bs, bool readLanguageId=false);
 
 	static const char *ToString(int64_t i);

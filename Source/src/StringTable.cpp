@@ -141,7 +141,9 @@ bool StringTable::DecodeString( char *output, int maxCharsToWrite, SLNet::BitStr
 			return false;
 		}
 		
-		strncpy_s(output, maxCharsToWrite, orderedStringList[index].str, maxCharsToWrite);
+		// maxCharsToWrite-1: the count must leave room for the terminator, otherwise strncpy_s
+		// reports ERANGE and writes an empty string instead of copying.
+		strncpy_s(output, maxCharsToWrite, orderedStringList[index].str, maxCharsToWrite-1);
 		output[maxCharsToWrite-1]=0;
 	}
 

@@ -9,7 +9,7 @@
 # license found in the license.txt file in the root directory of this source tree.
 #
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.10)
 
 project(SLikeNetDLL)
 
@@ -17,7 +17,11 @@ FILE(GLOB ALL_HEADER_SRCS ${SLikeNet_SOURCE_DIR}/Source/include/slikenet/*.h)
 FILE(GLOB ALL_COMPATIBILITY_HEADER_SRC ${SLikeNet_SOURCE_DIR}/Source/*.h)
 FILE(GLOB ALL_COMPATIBILITY_HEADER_SRC_2 ${SLikeNet_SOURCE_DIR}/Source/slikenet/*.h)
 FILE(GLOB ALL_CPP_SRCS ${SLikeNet_SOURCE_DIR}/Source/src/*.cpp)
-FILE(GLOB CRYPTO_CPP_SRCS ${SLikeNet_SOURCE_DIR}/Source/src/crypto/*.cpp)
+if(SLIKENET_ENABLE_CRYPTO)
+	FILE(GLOB CRYPTO_CPP_SRCS ${SLikeNet_SOURCE_DIR}/Source/src/crypto/*.cpp)
+else()
+	set(CRYPTO_CPP_SRCS "")
+endif()
 
 add_library(SLikeNetDLL SHARED ${ALL_CPP_SRCS} ${CRYPTO_CPP_SRCS} ${ALL_HEADER_SRCS})
 
@@ -42,7 +46,9 @@ add_definitions(-D_RETAIL)
 
 IF(WIN32 AND NOT UNIX)
 	add_definitions(-DWIN32 -D_RAKNET_DLL -D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_DEPRECATE)
-	SET( CMAKE_CXX_FLAGS "/GS- /GR-" )
+	# See the matching comment in Lib/LibStatic/CMakeLists.txt: /GS is left enabled, /GR- is
+	# retained, and the flags are appended rather than overwriting CMAKE_CXX_FLAGS.
+	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-" )
 ELSE(WIN32 AND NOT UNIX)
 	set_target_properties(SLikeNetDLL PROPERTIES
 		OUTPUT_NAME "slikenet"

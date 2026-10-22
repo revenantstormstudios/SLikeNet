@@ -358,7 +358,10 @@ bool TelnetTransport::ReassembleLine(TelnetTransport::TelnetClient* remoteClient
 	}
 	else if (c>=32 && c <127)
 	{
-		if (remoteClient->cursorPosition < REMOTE_MAX_TEXT_INPUT)
+		// -1 so that textInput[cursorPosition]=0 on the '\n' branch above, and the
+		// strlen()+1 copy into lastSentTextInput in Receive(), both stay in bounds. With the
+		// bare REMOTE_MAX_TEXT_INPUT bound, cursorPosition could reach the array size.
+		if (remoteClient->cursorPosition < REMOTE_MAX_TEXT_INPUT-1)
 		{
 			remoteClient->textInput[remoteClient->cursorPosition++]=c;
 #ifdef _PRINTF_DEBUG

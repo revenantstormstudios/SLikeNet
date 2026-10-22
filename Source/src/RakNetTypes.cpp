@@ -534,7 +534,10 @@ bool SystemAddress::SetBinaryAddress(const char *str, char portDelineator)
 		//	port=UNASSIGNED_SYSTEM_ADDRESS.port;
 		size_t index = 0;
 		// #med - revise this --- if the hostname length > 22 we'd reject it rather than skipping what is beyond the max length...
-		for (; index < delimiterPos && index < 22; ++index) {
+		// sizeof(IPPart)-1: the loop must stop one short so that the terminator written below
+		// still lands inside the buffer. With "index < 22" a 22-digit input drove index to 22
+		// and IPPart[22] wrote one byte past the end.
+		for (; index < delimiterPos && index < sizeof(IPPart)-1; ++index) {
 			if (str[index] != '.' && (str[index] < '0' || str[index] > '9')) {
 				break;
 			}
@@ -551,7 +554,8 @@ bool SystemAddress::SetBinaryAddress(const char *str, char portDelineator)
 	if (str[delimiterPos] != '\0') {
 		size_t portIndex;
 		++delimiterPos; // skip the delimiter
-		for (portIndex = 0; portIndex < 10 && str[delimiterPos] != '\0'; ++delimiterPos, ++portIndex) {
+		// sizeof(portPart)-1, for the same reason as IPPart above.
+		for (portIndex = 0; portIndex < sizeof(portPart)-1 && str[delimiterPos] != '\0'; ++delimiterPos, ++portIndex) {
 			if (str[delimiterPos] < '0' || str[delimiterPos] > '9') {
 				break;
 			}
@@ -598,12 +602,13 @@ bool SystemAddress::FromString(const char *str, char portDelineator, int ipVersi
 	}
 
 	int i = 0;
-	for (; i < sizeof(ipPart) && str[i] != '\0'; ++i) {
+	// Both loops stop one short of the buffer size so the terminators below stay in bounds.
+	for (; i < (int)sizeof(ipPart)-1 && str[i] != '\0'; ++i) {
 		if (str[i] == portDelineator) {
 			// #med - missing error checking, if portPart is non-numeric and/or exceeds max allowed port value
 			int j = 0;
 			++i; // skip the delimiter
-			for (; j < sizeof(portPart) && str[i] != '\0'; ++i, ++j) {
+			for (; j < (int)sizeof(portPart)-1 && str[i] != '\0'; ++i, ++j) {
 				portPart[j] = str[i];
 			}
 			portPart[j] = '\0';

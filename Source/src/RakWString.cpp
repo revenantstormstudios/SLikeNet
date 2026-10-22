@@ -399,8 +399,19 @@ bool RakWString::Deserialize(wchar_t *str, BitStream *bs)
 }
 bool RakWString::Deserialize(wchar_t *str, size_t strLength, BitStream *bs)
 {
-	size_t mbByteLength;
-	bs->ReadCasted<unsigned short>(mbByteLength);
+	size_t mbByteLength = 0;
+	if (bs->ReadCasted<unsigned short>(mbByteLength)==false)
+		return false;
+
+	// strLength is the caller's capacity in wchar_t, and until now it was accepted and then
+	// never used in this branch - only the dead #if 0 path below ever referenced it. The loop
+	// writes mbByteLength elements plus a terminator, and mbByteLength is a 16-bit value chosen
+	// by the sender, so a caller that correctly passed its buffer size still got a write of up
+	// to 65535 wchar_t. Note the loop does not stop early on a short read either, so the write
+	// happened even for a 3-byte message.
+	if (mbByteLength+1 > strLength)
+		return false;
+
 	if (mbByteLength>0)
 	{
 #if 0
@@ -422,7 +433,13 @@ bool RakWString::Deserialize(wchar_t *str, size_t strLength, BitStream *bs)
 		{
 			uint16_t t;
 			// Force endian swapping, and read 16 bits
-			bs->Read(t);
+			if (bs->Read(t)==false)
+			{
+				// Stop on a truncated payload rather than filling the rest of the buffer with
+				// whatever happens to be in t.
+				str[i]=0;
+				return false;
+			}
 			str[i]=t;
 		}
 		str[mbByteLength]=0;

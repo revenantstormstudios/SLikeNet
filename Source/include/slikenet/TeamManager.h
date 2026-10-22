@@ -743,7 +743,10 @@ protected:
 		DataStructures::List<TM_Team *> &teamsLeft, DataStructures::List<TM_Team *> &teamsJoined);
 
 	// O(1) lookup for a given world. If I need more worlds, change this to a hash or ordered list
-	TM_World *worldsArray[255];
+	// Indexed by WorldId, a uint8_t, so it needs an entry for every possible value. See the
+	// matching comment in ReplicaManager3.h: at [255], worldId 255 read one pointer past the
+	// end into the adjacent worldsList.
+	TM_World *worldsArray[256];
 	// All allocated worlds for linear traversal
 	DataStructures::List<TM_World*> worldsList;
 	bool autoAddParticipants;

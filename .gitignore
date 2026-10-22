@@ -1,4 +1,5 @@
 build/
+build-asan/
 *.vsidx
 *.obj
 *.ipch
