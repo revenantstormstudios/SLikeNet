@@ -12,6 +12,105 @@ The latest version and information are available at https://www.slikenet.com/
 
 
 
+About this fork
+---------------
+This repository (https://github.com/revenantstormstudios/SLikeNet) is a fork
+of SLikeNet 0.1.3, branched from upstream commit d5f775d7
+(https://github.com/SLikeSoft/SLikeNet). The rest of this readme is the
+upstream documentation and describes upstream SLikeNet; this section lists
+where the fork differs from it.
+
+The wire protocol is unchanged, but the ABI is not: several public headers
+changed class layouts and signatures, so headers and binaries from this fork
+must be used together and are not drop-in compatible with upstream SLikeNet
+or RakNet 4.082 binaries. Rebuild everything that includes these headers.
+
+Build and configuration
+- Visual Studio 2022 project files (v143 toolset).
+- RAKNET_COMPATIBILITY is defined in slikenet/defines.h, so the RakNet 4.082
+  names (RakNet namespace, RakNet_* libraries) are available by default. The
+  redirection header Source/NetworkIDObject.h had a typo and now resolves.
+- LIBCAT_SECURITY is enabled in slikenet/NativeFeatureIncludes.h. The CMake
+  build adds DependentExtensions/cat/lib/cat to the link path, because
+  SecureHandshake.obj pulls in big_x64.lib.
+- Buffer security checks (/GS) are enabled in every library build, in both
+  the .vcxproj files and CMake, including the vendored Jansson and MiniUPnP
+  static libraries.
+- RPC3 no longer depends on Boost. It has been reimplemented with the C++17
+  standard library and needs a C++17 compiler.
+- CMake: the minimum version is 3.10, so the build configures under CMake 4.
+  New options:
+     SLIKENET_ENABLE_CRYPTO  (ON)  build the OpenSSL-backed CryptoManager and
+                                   FileEncrypter; OFF builds without OpenSSL
+     SLIKENET_ENABLE_TESTS   (ON)  generate the unit test project
+     SLIKENET_ENABLE_ASAN    (OFF) build everything with AddressSanitizer
+  The library CMakeLists now append to CMAKE_CXX_FLAGS instead of
+  overwriting it.
+
+API changes
+- ReplicaManager3: the worldId parameters no longer default to 0 and must be
+  passed explicitly. Previously only world 0 worked reliably, because many
+  internal calls dropped the worldId they had. Replica3 now records its
+  worldId when passed to Reference(), so it is detached from the right world.
+- ReplicaManager3::SetAuthorityMode() / GetAuthorityMode() declare which
+  system may construct and destroy replicas:
+     RM3AM_NONE              default; unchecked, as upstream
+     RM3AM_LOCAL_AUTHORITY   authoritative server; remote construction and
+                             destruction are rejected
+     RM3AM_REMOTE_AUTHORITY  client; accepted only from the given GUID
+  Rejected messages are dropped silently. Serialization is not gated.
+- MAX_SPLIT_PACKET_COUNT (slikenet/defines.h, default 100000) caps the number
+  of fragments a split message may be reassembled from.
+- RakString::Deserialize(char*, BitStream*) and
+  RakString::DeserializeCompressed(char*, BitStream*, bool) are documented as
+  unsafe, because they receive no destination capacity. Prefer the member
+  overloads.
+
+Security hardening
+Valid traffic is decoded exactly as before. Malformed input that previously
+read or wrote out of bounds, or used uninitialized values, is now rejected:
+- Peers that send datagrams no conforming peer could produce are disconnected
+  and temporarily banned. Authenticated decryption failures are exempt,
+  because the anti-replay window also rejects duplicated or heavily reordered
+  datagrams from legitimate peers.
+- ID_CONNECTION_REQUEST: a truncated request is rejected instead of echoing
+  stack memory back to the sender.
+- ReliabilityLayer: the split packet count, fragment index and reassembly
+  bounds are validated.
+- ReplicaManager3: worldId 255 no longer indexes past the worlds array;
+  timestamped messages are length-checked; truncated destruction lists stop
+  instead of reusing stale values.
+- TeamManager / TeamBalancer: worldId bounds, truncated reads and
+  off-by-one team index checks.
+- TableSerializer: the wire-supplied cell index is bounded.
+- FileListTransfer: the reference push chunk offset and length are bounded.
+- RakString, RakWString, StringCompressor: the destination is bounded,
+  truncated payloads are rejected, and output is always terminated; a failed
+  decode yields an empty string rather than stack contents.
+- BitStream: byte counts are compared without the 32-bit shift that could
+  wrap; decode primitives no longer overflow or leave output uninitialized.
+- Fixed-buffer parsers (SystemAddress, ParseConsoleString, StringTable,
+  DataStructures::Table, TelnetTransport) reserve space for the terminator;
+  the Linux/OSX strncpy_s adapters match MSVC semantics.
+- ConsoleServer: the command buffer is clamped to REMOTE_MAX_TEXT_INPUT.
+
+Tests and CI
+Tests/ holds regression tests for the fixes above, run through CTest. They
+are most meaningful under AddressSanitizer, which turns an out-of-bounds
+access into a failure instead of silent corruption:
+
+   cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64
+         -DSLIKENET_ENABLE_CRYPTO=OFF -DSLIKENET_ENABLE_SAMPLES=OFF
+         -DSLIKENET_ENABLE_DLL=OFF -DSLIKENET_ENABLE_ASAN=ON
+   cmake --build build-asan --config Release --parallel
+   ctest --test-dir build-asan -C Release --output-on-failure
+
+.github/workflows/ci.yml runs the same on Windows (MSVC) and Linux (GCC),
+with and without ASan, for pushes to master and security_* branches and for
+pull requests to master.
+
+
+
 Table of Contents
    0.      Quickstart
    1.      What is SLikeNet?
@@ -478,7 +577,7 @@ of the license file.
                        1.48.0
    Used in:
       - Ogre3dInterpDemo (see 4.7)
-      - RPC3 (see 5.38)
+   (This fork's RPC3 no longer uses Boost; see "About this fork".)
 
 2.4.2 BZip2
    Description: bzip2 is a freely available, patent free, high-quality data
