@@ -19,7 +19,7 @@
 #include "slikenet/TransportInterface.h"
 #include "slikenet/CommandParserInterface.h"
 #include "slikenet/types.h"
-#include "slikenet/MemoryOverride.h"
+#include "slikenet/memoryoverride.h"
 
 #include <cstring>
 
